@@ -15,7 +15,7 @@ import type { Payment } from '@/lib/types';
 // Función local para formatear moneda
 const formatCurrency = (amount?: number) => {
   if (typeof amount !== 'number' || isNaN(amount)) return 'C$0.00';
-  return `C${amount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `C$${amount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 interface EditPaymentPlanModalProps {
