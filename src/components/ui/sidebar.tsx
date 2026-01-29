@@ -74,6 +74,12 @@ const SidebarProvider = React.forwardRef<
   ) => {
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
+    const [isClient, setIsClient] = React.useState(false)
+
+    // Efecto para marcar que estamos en el cliente
+    React.useEffect(() => {
+      setIsClient(true)
+    }, [])
 
     // INICIO BLOQUE MODIFICADO PARA MANEJAR COOKIES
     // 1. Estado para el valor inicial (lo usamos para inicializar _open)
@@ -85,6 +91,8 @@ const SidebarProvider = React.forwardRef<
 
     // 3. Efecto para leer la cookie SÓLO en el lado del cliente (después de montar)
     React.useEffect(() => {
+        if (!isClient) return
+        
         try {
             const cookieValue = document.cookie
                 .split('; ')
@@ -101,13 +109,15 @@ const SidebarProvider = React.forwardRef<
         } catch (e) {
             console.error("No se pudo leer la cookie del sidebar:", e);
         }
-    }, []) // Array de dependencias vacío para que se ejecute solo al montar
+    }, [isClient]) // Dependencia de isClient para que se ejecute cuando esté listo
     // FIN BLOQUE MODIFICADO PARA MANEJAR COOKIES
 
     // Este es el estado interno de la barra lateral.
     // Usamos openProp y setOpenProp para el control desde fuera del componente.
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
+        if (!isClient) return // No hacer nada si no estamos en el cliente
+        
         const openState = typeof value === "function" ? value(open) : value
         if (setOpenProp) {
           setOpenProp(openState)
@@ -118,15 +128,17 @@ const SidebarProvider = React.forwardRef<
         // Esto establece la cookie para mantener el estado de la barra lateral.
         document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
       },
-      [setOpenProp, open]
+      [setOpenProp, open, isClient]
     )
 
     // Ayudante para alternar la barra lateral.
     const toggleSidebar = React.useCallback(() => {
+      if (!isClient) return // No hacer nada si no estamos en el cliente
+      
       return isMobile
         ? setOpenMobile((open) => !open)
         : setOpen((open) => !open)
-    }, [isMobile, setOpen, setOpenMobile])
+    }, [isMobile, setOpen, setOpenMobile, isClient])
 
     // Añade un atajo de teclado para alternar la barra lateral.
     React.useEffect(() => {

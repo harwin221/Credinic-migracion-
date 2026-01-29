@@ -86,9 +86,11 @@ export function CreditDetailView({ credit: initialCredit, onPaymentSuccess }: Cr
     const [credit, setCredit] = React.useState<CreditDetail>(initialCredit);
     const [isLoading, setIsLoading] = React.useState(false);
     const [deviceType, setDeviceType] = React.useState<'desktop' | 'mobile'>('desktop');
+    const [isClient, setIsClient] = React.useState(false);
     const isMobile = useIsMobile();
 
     React.useEffect(() => {
+        setIsClient(true);
         setDeviceType(getDeviceType());
     }, []);
 
@@ -305,7 +307,7 @@ export function CreditDetailView({ credit: initialCredit, onPaymentSuccess }: Cr
             </div>
             <Tabs defaultValue="details" className="w-full">
                 <div className="overflow-x-auto pb-2">
-                    <TabsList className={isMobile ? 'flex justify-start' : 'grid w-full grid-cols-5'}>
+                    <TabsList className={isClient && isMobile ? 'flex justify-start' : 'grid w-full grid-cols-5'}>
                         <TabsTrigger value="details">Detalles</TabsTrigger>
                         <TabsTrigger value="summary">Resumen</TabsTrigger>
                         <TabsTrigger value="guarantors">Fiadores</TabsTrigger>
