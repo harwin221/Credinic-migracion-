@@ -1,159 +1,178 @@
-# 📁 SCRIPTS DE MIGRACIÓN Y GESTIÓN - CREDINICA
+# Scripts de Migración CrediNica
 
-Esta carpeta contiene todos los scripts necesarios para la migración y gestión del sistema CrediNica, organizados y listos para usar.
+Esta carpeta contiene el script maestro de migración y herramientas auxiliares para migrar desde sistemas anteriores al nuevo sistema CrediNica.
 
-## 🌟 SCRIPT PRINCIPAL
+## 🚀 Script Principal
 
-### `credinica-toolkit.js` - **SCRIPT MAESTRO** ⭐
-**Este es el único script que necesitas usar en el 99% de los casos**
+### `complete-system-migration.js`
+**Script maestro que realiza la migración completa del sistema.**
 
+**Funcionalidades:**
+- ✅ Migración completa de usuarios, clientes, créditos y pagos
+- ✅ Generación automática de planes de pago
+- ✅ Creación de usuario administrador
+- ✅ Corrección de nombres de gestores en pagos
+- ✅ Verificación de salud del sistema
+- ✅ Modo simulación para pruebas seguras
+
+**Uso:**
 ```bash
-# Diagnóstico completo del sistema
-node migration-scripts/credinica-toolkit.js diagnose
+# Configurar variables de entorno en .env
+OLD_DB_HOST=host_sistema_anterior
+OLD_DB_USER=usuario_anterior
+OLD_DB_PASSWORD=contraseña_anterior
+OLD_DB_DATABASE=base_datos_anterior
 
-# Arreglar todos los problemas automáticamente
-node migration-scripts/credinica-toolkit.js fix-all
+NEW_DB_HOST=localhost
+NEW_DB_USER=root
+NEW_DB_PASSWORD=tu_contraseña
+NEW_DB_DATABASE=credinica
 
-# Arreglar solo el usuario administrador
-node migration-scripts/credinica-toolkit.js fix-admin
-
-# Crear nuevo usuario rápido
-node migration-scripts/credinica-toolkit.js create-user "María García" maria GESTOR
-
-# Ver todos los usuarios
-node migration-scripts/credinica-toolkit.js list-users
-
-# Ver ayuda completa
-node migration-scripts/credinica-toolkit.js help
+# Ejecutar migración completa
+node migration-scripts/complete-system-migration.js
 ```
 
-## 📋 SCRIPTS ADICIONALES
+## 🔧 Herramientas Auxiliares
 
-### 🔄 **MIGRACIÓN DE DATOS**
-- `migration.js` - Script principal de migración de BD antigua a nueva
-- `check-migration-status.js` - Verificar estado de la migración completa
+### `database-health-check.js`
+Verificación completa de salud de la base de datos.
 
-### 👥 **GESTIÓN AVANZADA DE USUARIOS**
-- `user-toolkit.js` - Toolkit completo con modo interactivo
-- `manage-users.js` - Script avanzado para operaciones específicas
-- `reset-admin-password.js` - Resetear contraseña del administrador
+### `credinica-toolkit.js`
+Herramientas de mantenimiento y utilidades del sistema.
 
-### 🗺️ **VERIFICACIÓN DE DATOS**
-- `check-addresses.js` - Verificar migración de direcciones y geografía
-- `database-health-check.js` - Verificar salud general de la base de datos
-- `populate-geo-data.js` - Poblar datos de geografía (departamentos/municipios)
+## ⚙️ Configuración
 
-## 🚀 COMANDOS MÁS USADOS
+### Variables de Entorno Requeridas
+```env
+# Base de Datos Antigua (Origen)
+OLD_DB_HOST=tu_host_antiguo
+OLD_DB_USER=tu_usuario_antiguo
+OLD_DB_PASSWORD=tu_contraseña_antigua
+OLD_DB_DATABASE=tu_base_de_datos_antigua
 
-### ⚡ Comandos Rápidos (90% de los casos):
-```bash
-# Ver qué está mal
-node migration-scripts/credinica-toolkit.js diagnose
-
-# Arreglar todo
-node migration-scripts/credinica-toolkit.js fix-all
-
-# Crear usuario
-node migration-scripts/credinica-toolkit.js create-user "Juan Pérez" juan OPERATIVO
+# Base de Datos Nueva (Destino)
+NEW_DB_HOST=tu_host_nuevo
+NEW_DB_USER=tu_usuario_nuevo
+NEW_DB_PASSWORD=tu_contraseña_nueva
+NEW_DB_DATABASE=tu_base_de_datos_nueva
 ```
 
-### 🔍 Verificaciones Específicas:
-```bash
-# Estado de migración completa
-node migration-scripts/check-migration-status.js
+## 🛡️ Modo Simulación
 
-# Salud de la base de datos
-node migration-scripts/database-health-check.js
+El script principal incluye un modo de simulación que permite probar la migración sin realizar cambios reales:
 
-# Verificar direcciones
-node migration-scripts/check-addresses.js
+```javascript
+// En complete-system-migration.js
+const SIMULATION_MODE = true;  // true = solo simula, false = ejecuta cambios
 ```
 
-### 🔧 Operaciones Avanzadas:
+## 📊 Proceso de Migración
+
+### Fase 1: Preparación
+- Verificación de esquema de base de datos
+- Creación de columnas `legacyId` si no existen
+- Limpieza de tablas de destino
+
+### Fase 2: Migración de Datos
+1. **Usuarios y Clientes**: Migra usuarios del sistema y clientes
+2. **Créditos**: Migra créditos con generación automática de planes de pago
+3. **Pagos**: Migra pagos con corrección de nombres de gestores
+4. **Usuario Admin**: Crea/actualiza usuario administrador
+
+### Fase 3: Verificación
+- Verificación de integridad referencial
+- Conteo de registros migrados
+- Detección de problemas potenciales
+
+## 🔍 Verificaciones de Salud
+
+El script incluye verificaciones automáticas:
+- ✅ Créditos huérfanos (sin cliente)
+- ✅ Pagos huérfanos (sin crédito)
+- ✅ Usuarios sin contraseña
+- ✅ Existencia de administradores
+- ✅ Integridad de datos geográficos
+
+## 📋 Mapeo de Datos
+
+### Roles de Usuario
+- `1` → `ADMINISTRADOR`
+- `2` → `FINANZAS`
+- `4` → `GESTOR`
+
+### Estados de Crédito
+- `1` → `Active`
+- `2` → `Paid`
+- `3` → `Expired`
+- `4` → `Rejected`
+
+### Frecuencia de Pago
+- `1` → `Diario`
+- `2` → `Semanal`
+- `3` → `Quincenal`
+- `4` → `Catorcenal`
+
+### Estado Civil
+- `0` → `Soltero`
+- `1` → `Casado`
+- `2` → `Union Libre`
+- `3` → `Viudo(a)`
+- `4` → `Divorciado`
+
+## 🚨 Características de Seguridad
+
+### Transacciones Atómicas
+- Toda la migración se ejecuta en una sola transacción
+- Si hay error, se revierten todos los cambios automáticamente
+- La base de datos queda intacta en caso de fallo
+
+### Proceso Idempotente
+- Se puede ejecutar múltiples veces sin duplicar datos
+- Limpia tablas de destino antes de cada ejecución
+- Garantiza migración fresca en cada ejecución
+
+### Manejo de Errores
+- Continúa la migración aunque encuentre datos inválidos
+- Registra y reporta problemas encontrados
+- No se detiene por registros individuales problemáticos
+
+## 📈 Resultados Esperados
+
+Después de una migración exitosa:
+- ✅ Todos los usuarios migrados con username y email
+- ✅ Todos los clientes con información geográfica
+- ✅ Todos los créditos activos con planes de pago generados
+- ✅ Todos los pagos con nombres reales de gestores
+- ✅ Usuario administrador creado (username: admin, password: admin123)
+
+## 🔧 Solución de Problemas
+
+### Error de Conexión
 ```bash
-# Toolkit interactivo completo
-node migration-scripts/user-toolkit.js
-
-# Gestión específica de usuarios
-node migration-scripts/manage-users.js list
-
-# Migración completa desde cero
-node migration-scripts/migration.js
+Error: connect ECONNREFUSED
 ```
+**Solución**: Verificar credenciales de base de datos en `.env`
 
-## 📋 CREDENCIALES PRINCIPALES
-- **Usuario:** `administrador`
-- **Contraseña:** `password123`
-
-## 💡 FLUJO RECOMENDADO
-
-### 🆘 Para Problemas de Login:
+### Error de Permisos
 ```bash
-node migration-scripts/credinica-toolkit.js fix-admin
+Error: Access denied for user
 ```
+**Solución**: Verificar permisos de usuario en MySQL
 
-### 🔧 Para Problemas Generales:
+### Datos Faltantes
 ```bash
-# 1. Ver qué está mal
-node migration-scripts/credinica-toolkit.js diagnose
-
-# 2. Arreglar todo
-node migration-scripts/credinica-toolkit.js fix-all
+[AVISO] Omitiendo registro...
 ```
+**Solución**: Normal, el script omite registros inválidos y continúa
 
-### 👤 Para Crear Usuarios:
-```bash
-node migration-scripts/credinica-toolkit.js create-user "Nombre" username ROL
-```
+## 📞 Soporte
 
-### 📊 Para Verificar Sistema:
-```bash
-node migration-scripts/check-migration-status.js
-node migration-scripts/database-health-check.js
-```
-
-## 🎯 ROLES DISPONIBLES
-- **ADMINISTRADOR** - Acceso total al sistema
-- **FINANZAS** - Gestión financiera y reportes
-- **GESTOR** - Gestión de cartera de clientes
-- **OPERATIVO** - Operaciones básicas
-
-## 🆘 COMANDOS DE EMERGENCIA
-
-Si nada funciona, ejecutar en este orden:
-
-```bash
-# 1. Diagnóstico
-node migration-scripts/credinica-toolkit.js diagnose
-
-# 2. Reparación completa
-node migration-scripts/credinica-toolkit.js fix-all
-
-# 3. Verificar administrador
-node migration-scripts/credinica-toolkit.js fix-admin
-
-# 4. Verificar estado final
-node migration-scripts/check-migration-status.js
-```
+Para problemas con la migración:
+1. Revisar logs de consola
+2. Verificar variables de entorno
+3. Ejecutar en modo simulación primero
+4. Contactar soporte técnico si persisten problemas
 
 ---
 
-## 📁 ORGANIZACIÓN DE ARCHIVOS
-
-```
-migration-scripts/
-├── credinica-toolkit.js          ⭐ SCRIPT PRINCIPAL
-├── migration.js                  🔄 Migración completa
-├── user-toolkit.js               👥 Gestión de usuarios
-├── manage-users.js               🔧 Operaciones avanzadas
-├── check-migration-status.js     📊 Estado de migración
-├── database-health-check.js      🏥 Salud de BD
-├── check-addresses.js            🗺️ Verificar geografía
-├── reset-admin-password.js       🔑 Reset admin
-├── populate-geo-data.js          🌍 Datos de geografía
-└── README.md                     📖 Esta documentación
-```
-
-**¡Todo organizado y listo para usar!** 🎉
-
-**Recuerda:** En el 99% de los casos, solo necesitas `credinica-toolkit.js`
+**Nota**: Siempre hacer backup de la base de datos antes de ejecutar la migración en producción.

@@ -1,59 +1,261 @@
-# Script de Migración de Base de Datos
+# CrediNica - Sistema de Gestión de Microcréditos
 
-Este script está diseñado para migrar datos desde una estructura de base de datos MySQL antigua a una nueva, manejando la limpieza, transformación y validación de los datos en el proceso.
+<div align="center">
+  <img src="public/CrediNica.png" alt="CrediNica Logo" width="200"/>
+  
+  [![Next.js](https://img.shields.io/badge/Next.js-14.0-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+  [![MySQL](https://img.shields.io/badge/MySQL-8.0-orange?style=flat-square&logo=mysql)](https://www.mysql.com/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.0-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+</div>
 
-## Características y Avances Implementados
+## 📋 Descripción
 
-Este no es un script básico. Ha sido fortalecido con varias capas de seguridad y lógica para garantizar una migración exitosa y segura.
+CrediNica es un sistema integral de gestión de microcréditos desarrollado específicamente para instituciones financieras en Nicaragua. Permite la administración completa del ciclo de vida de los créditos, desde la solicitud hasta el pago final, con funcionalidades avanzadas de reportería y control.
 
-1.  **Migración por Fases y Ordenada**: El script respeta el orden de dependencia de los datos. Migra primero las entidades maestras y luego las que dependen de ellas (`Users` → `Clients` → `Credits` → `Payments`), evitando así errores de claves foráneas.
+## ✨ Características Principales
 
-2.  **Proceso Reutilizable (Idempotente)**: ¡Esta es una característica clave! El script se puede ejecutar múltiples veces sin riesgo. Al inicio de cada ejecución real, activa una **Fase 0 de Limpieza** que vacía (`TRUNCATE`) todas las tablas de destino. Esto garantiza que cada migración sea una copia fresca y completa desde el origen, eliminando el riesgo de duplicar datos en ejecuciones repetidas.
+### 🏦 Gestión de Créditos
+- **Solicitud y Aprobación**: Flujo completo de solicitud de créditos con validaciones automáticas
+- **Planes de Pago**: Generación automática de cronogramas de pago (diario, semanal, quincenal, catorcenal)
+- **Cálculo de Intereses**: Sistema avanzado de cálculo de intereses y mora
+- **Estados de Crédito**: Seguimiento completo del estado de cada crédito (Activo, Pagado, Vencido, Rechazado)
 
-3.  **Transacciones Atómicas (A prueba de fallos)**: Toda la operación de migración está envuelta en una única transacción. Esto funciona como una red de seguridad. Si ocurre CUALQUIER error en medio del proceso, la transacción se cancela por completo (`ROLLBACK`). **El resultado es que la base de datos de destino queda intacta**, como si el script nunca se hubiera ejecutado. Esto previene migraciones a medias y corrupción de datos.
+### 👥 Gestión de Clientes
+- **Registro Completo**: Información personal, contacto, ubicación geográfica y garantías
+- **Historial Crediticio**: Seguimiento completo del historial de cada cliente
+- **Validaciones**: Sistema de validación de cédulas y datos personales
+- **Geolocalización**: Integración con departamentos y municipios de Nicaragua
 
-4.  **Manejo Inteligente de Datos Inválidos**: El script está ahora "blindado" contra datos de mala calidad en la base de datos de origen. Si encuentra un registro (cliente, crédito, etc.) que no tiene una llave primaria válida (nula o vacía), hará lo siguiente:
-    *   Imprimirá un mensaje de `[AVISO]` en la consola para notificar sobre el registro omitido.
-    *   Saltará ese registro y **continuará con el resto de la migración**, sin detenerse.
-    *   Al final de cada fase, informará cuántos registros se omitieron.
+### 💰 Gestión de Pagos
+- **Registro de Pagos**: Sistema completo de registro y validación de pagos
+- **Recibos**: Generación automática de recibos para impresoras térmicas
+- **Control de Mora**: Cálculo automático de días de atraso y montos en mora
+- **Historial**: Seguimiento detallado de todos los pagos realizados
 
-5.  **Transformación y Mapeo de Datos**: El script no solo copia datos, sino que los transforma. Mapea valores antiguos (ej: `estado_civil = 1`) a valores nuevos y legibles (ej: `civilStatus = 'Casado'`), adaptando la información al nuevo esquema de la base de datos.
+### 📊 Reportería Avanzada
+- **Estados de Cuenta**: Reportes detallados por cliente y crédito
+- **Cartera**: Análisis completo de la cartera de créditos
+- **Cobranza**: Reportes de gestión de cobranza y recuperación
+- **Arqueos**: Control de cierres de caja y billetaje
+- **Provisiones**: Cálculos de provisiones según normativas
 
-6.  **Modo de Simulación**: Incluye una variable de seguridad `SIMULATION_MODE`. Cuando está en `true`, el script se conecta a las bases de datos y recorre todos los datos, pero solo *imprime* lo que haría, sin ejecutar ningún cambio. Esto permite verificar todo el proceso de forma segura antes de la ejecución real.
+### 🔐 Seguridad y Control
+- **Roles de Usuario**: Sistema de roles (Administrador, Finanzas, Gestor, Operativo)
+- **Auditoría**: Registro completo de todas las operaciones del sistema
+- **Control de Acceso**: Restricciones por sucursal y horarios
+- **Autenticación**: Sistema seguro de login con encriptación
 
-## Instrucciones de Uso
+### 📱 Funcionalidades Móviles
+- **PWA**: Aplicación web progresiva para uso móvil
+- **Modo Offline**: Funcionalidad limitada sin conexión a internet
+- **Sincronización**: Sincronización automática cuando se recupera la conexión
+- **Impresión Bluetooth**: Soporte para impresoras térmicas portátiles
 
-1.  **Instalar Dependencias**:
-    ```bash
-    npm install
-    ```
+## 🛠️ Tecnologías Utilizadas
 
-2.  **Configurar Variables de Entorno**:
-    Cree un archivo `.env` en la raíz del proyecto con las credenciales de ambas bases de datos:
-    ```env
-    # Base de Datos Antigua (Origen)
-    OLD_DB_HOST=tu_host_antiguo
-    OLD_DB_USER=tu_usuario_antiguo
-    OLD_DB_PASSWORD=tu_contraseña_antigua
-    OLD_DB_DATABASE=tu_base_de_datos_antigua
+### Frontend
+- **Next.js 14**: Framework de React con App Router
+- **TypeScript**: Tipado estático para mayor seguridad
+- **Tailwind CSS**: Framework de CSS utilitario
+- **Shadcn/ui**: Componentes de UI modernos y accesibles
+- **React Hook Form**: Manejo eficiente de formularios
+- **Zustand**: Gestión de estado global
 
-    # Base de Datos Nueva (Destino)
-    NEW_DB_HOST=tu_host_nuevo
-    NEW_DB_USER=tu_usuario_nuevo
-    NEW_DB_PASSWORD=tu_contraseña_nueva
-    NEW_DB_DATABASE=tu_base_de_datos_nueva
-    ```
+### Backend
+- **Next.js API Routes**: API RESTful integrada
+- **MySQL**: Base de datos relacional
+- **JWT**: Autenticación basada en tokens
+- **bcryptjs**: Encriptación de contraseñas
+- **Node.js**: Runtime de JavaScript
 
-3.  **Paso 3: Ejecutar en Modo Simulación (Recomendado)**:
-    Asegúrese de que la variable `SIMULATION_MODE` en `migration.js` esté en `true`. Luego, ejecute:
-    ```bash
-    node migration.js
-    ```
-    Revise la salida en la consola para confirmar que los datos se están leyendo y preparando correctamente. No se realizará ningún cambio en la base de datos.
+### Herramientas de Desarrollo
+- **ESLint**: Linting de código
+- **Prettier**: Formateo de código
+- **Vercel**: Plataforma de despliegue
 
-4.  **Paso 4: Ejecución Real**:
-    Una vez verificada la simulación, edite `migration.js` y cambie `SIMULATION_MODE` a `false`.
-    Ejecute el script. Esta vez, se limpiarán las tablas de destino y se insertarán los datos.
-    ```bash
-    node migration.js
-    ```
+## 🚀 Instalación y Configuración
+
+### Prerrequisitos
+- Node.js 18+ 
+- MySQL 8.0+
+- npm o yarn
+
+### 1. Clonar el Repositorio
+```bash
+git clone https://github.com/harwin221/Credinic-migracion-.git
+cd Credinic-migracion-
+```
+
+### 2. Instalar Dependencias
+```bash
+npm install
+```
+
+### 3. Configurar Variables de Entorno
+Crear archivo `.env.local`:
+```env
+# Base de Datos
+NEW_DB_HOST=localhost
+NEW_DB_USER=root
+NEW_DB_PASSWORD=tu_contraseña
+NEW_DB_DATABASE=credinica
+
+# JWT Secret
+JWT_SECRET=tu_clave_secreta_muy_larga_y_segura
+
+# Configuración de la Aplicación
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### 4. Configurar Base de Datos
+```bash
+# Crear la base de datos
+mysql -u root -p -e "CREATE DATABASE credinica;"
+
+# Importar esquema (si tienes un archivo SQL)
+mysql -u root -p credinica < database/schema.sql
+```
+
+### 5. Ejecutar Migración (si vienes de sistema anterior)
+```bash
+# Configurar variables de migración en .env
+OLD_DB_HOST=host_sistema_anterior
+OLD_DB_USER=usuario_anterior
+OLD_DB_PASSWORD=contraseña_anterior
+OLD_DB_DATABASE=base_datos_anterior
+
+# Ejecutar migración completa
+node migration-scripts/complete-system-migration.js
+```
+
+### 6. Iniciar Aplicación
+```bash
+# Desarrollo
+npm run dev
+
+# Producción
+npm run build
+npm start
+```
+
+## 📁 Estructura del Proyecto
+
+```
+credinica/
+├── src/
+│   ├── app/                    # App Router de Next.js
+│   │   ├── (auth)/            # Rutas de autenticación
+│   │   ├── api/               # API Routes
+│   │   ├── clients/           # Gestión de clientes
+│   │   ├── credits/           # Gestión de créditos
+│   │   ├── dashboard/         # Panel principal
+│   │   ├── reports/           # Reportería
+│   │   └── settings/          # Configuraciones
+│   ├── components/            # Componentes reutilizables
+│   │   ├── ui/               # Componentes base de UI
+│   │   └── clients/          # Componentes específicos
+│   ├── lib/                  # Utilidades y configuraciones
+│   ├── services/             # Servicios de negocio
+│   └── types/                # Definiciones de tipos
+├── migration-scripts/         # Scripts de migración
+├── public/                   # Archivos estáticos
+└── docs/                     # Documentación
+```
+
+## 🔧 Scripts de Migración
+
+El sistema incluye un script maestro de migración que permite migrar desde sistemas anteriores:
+
+### Script Principal
+- `complete-system-migration.js`: Migración completa del sistema
+
+### Características de la Migración
+- **Migración por Fases**: Usuarios → Clientes → Créditos → Pagos
+- **Generación de Planes**: Crea automáticamente planes de pago
+- **Corrección de Datos**: Mapea gestores reales en pagos
+- **Verificación de Salud**: Valida integridad de datos
+- **Modo Simulación**: Permite probar antes de ejecutar
+
+## 📊 Funcionalidades del Sistema
+
+### Dashboard
+- Resumen ejecutivo de la cartera
+- Métricas de desempeño
+- Alertas y notificaciones
+- Búsqueda rápida de créditos
+
+### Gestión de Clientes
+- Registro con validación de cédula
+- Información de garantías
+- Historial crediticio completo
+- Geolocalización por departamento/municipio
+
+### Gestión de Créditos
+- Calculadora de créditos
+- Aprobación con flujo de trabajo
+- Planes de pago automáticos
+- Seguimiento de estado y mora
+
+### Reportería
+- Estados de cuenta individuales
+- Reportes de cartera consolidada
+- Análisis de cobranza
+- Reportes de provisiones
+- Exportación a PDF/Excel
+
+### Configuraciones
+- Gestión de usuarios y roles
+- Configuración de sucursales
+- Días feriados
+- Control de acceso
+
+## 🔐 Seguridad
+
+- **Autenticación JWT**: Tokens seguros con expiración
+- **Encriptación**: Contraseñas encriptadas con bcrypt
+- **Roles y Permisos**: Control granular de acceso
+- **Auditoría**: Registro de todas las operaciones
+- **Validaciones**: Validación de datos en frontend y backend
+
+## 📱 PWA (Progressive Web App)
+
+- **Instalable**: Se puede instalar como app nativa
+- **Offline**: Funcionalidad básica sin conexión
+- **Responsive**: Adaptado para móviles y tablets
+- **Push Notifications**: Notificaciones push (futuro)
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crear rama de feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit cambios (`git commit -am 'Agregar nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Crear Pull Request
+
+## 📄 Licencia
+
+Este proyecto es propiedad de CrediNica. Todos los derechos reservados.
+
+## 📞 Soporte
+
+Para soporte técnico o consultas:
+- Email: soporte@credinica.com
+- Teléfono: +505 xxxx-xxxx
+
+## 🔄 Changelog
+
+### v1.0.0 (2026-01-29)
+- ✅ Sistema completo de gestión de microcréditos
+- ✅ Migración desde sistema anterior
+- ✅ Reportería avanzada
+- ✅ PWA con funcionalidad offline
+- ✅ Sistema de roles y permisos
+- ✅ Integración con impresoras térmicas
+
+---
+
+<div align="center">
+  <p>Desarrollado con ❤️ para CrediNica</p>
+  <p>© 2026 CrediNica. Todos los derechos reservados.</p>
+</div>

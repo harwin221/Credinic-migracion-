@@ -1,19 +1,35 @@
-// Importamos las librerías necesarias
+#!/usr/bin/env node
+
+/**
+ * ========================================
+ * CREDINICA - SCRIPT MAESTRO DE MIGRACIÓN
+ * ========================================
+ * 
+ * Este script realiza la migración completa del sistema CrediNica:
+ * - Migra usuarios, clientes, créditos y pagos
+ * - Genera planes de pago automáticamente
+ * - Crea usuario administrador
+ * - Corrige nombres de gestores en pagos
+ * - Ejecuta verificaciones de salud
+ * 
+ * Autor: Sistema CrediNica
+ * Versión: 1.0.0
+ * Fecha: 2026-01-29
+ */
+
 require('dotenv').config();
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 
-// --- CONFIGURACIÓN GLOBAL ---
-// ¡¡MODO DE SEGURIDAD!! true = Solo simula e imprime. false = Ejecuta los cambios en la BD nueva.
+// ==========================================
+// CONFIGURACIÓN GLOBAL
+// ==========================================
+
+// MODO DE SEGURIDAD: true = Solo simula, false = Ejecuta cambios reales
 const SIMULATION_MODE = false;
 
-// --- GENERADORES DE ID (EMULANDO LA LÓGICA DE LA APP NUEVA) ---
-const generateCreditId = () => `cred_${randomUUID()}`;
-const generateClientId = () => `cli_${randomUUID()}`;
-const generateUserId = () => `user_${randomUUID()}`;
-const generatePaymentId = () => `pay_${randomUUID()}`;
-
-// --- CONFIGURACIÓN DE CONEXIONES ---
+// Configuración de conexiones
 const oldDbConfig = {
     host: process.env.OLD_DB_HOST,
     user: process.env.OLD_DB_USER,
@@ -30,7 +46,19 @@ const newDbConfig = {
     charset: 'utf8mb4'
 };
 
-// --- DICCIONARIOS DE TRADUCCIÓN ---
+// ==========================================
+// GENERADORES DE ID
+// ==========================================
+
+const generateCreditId = () => `cred_${randomUUID()}`;
+const generateClientId = () => `cli_${randomUUID()}`;
+const generateUserId = () => `user_${randomUUID()}`;
+const generatePaymentId = () => `pay_${randomUUID()}`;
+
+// ==========================================
+// DICCIONARIOS DE TRADUCCIÓN
+// ==========================================
+
 const SEX_MAP = { 0: 'Masculino', 1: 'Femenino' };
 const CIVIL_STATUS_MAP = { 0: 'Soltero', 1: 'Casado', 2: 'Union Libre', 3: 'Viudo(a)', 4: 'Divorciado' };
 const USER_ROLE_MAP = { 1: 'ADMINISTRADOR', 2: 'FINANZAS', 4: 'GESTOR' };
@@ -39,7 +67,10 @@ const PAYMENT_FREQ_MAP = { 1: 'Diario', 2: 'Semanal', 3: 'Quincenal', 4: 'Catorc
 const CURRENCY_MAP = { 0: 'Cordobas' };
 const PAYMENT_STATUS_MAP = { 1: 'valido', 2: 'anulado' };
 
-// --- FUNCIÓN PARA GENERAR PLAN DE PAGOS ---
+// ==========================================
+// UTILIDADES DE FECHA Y CÁLCULOS
+// ==========================================
+
 function formatDateForUser(date, format = 'dd/MM/yyyy') {
     if (!date) return '';
     
@@ -78,7 +109,7 @@ function generatePaymentSchedule(data) {
         if (dateInput.includes('T')) {
             initialDate = new Date(dateInput);
         } else {
-            initialDate = new Date(`${dateInput}T12:00:00`); // Usar mediodía
+            initialDate = new Date(`${dateInput}T12:00:00`);
         }
         if (isNaN(initialDate.getTime())) return null;
     } catch (error) {
@@ -129,7 +160,7 @@ function generatePaymentSchedule(data) {
         schedule.push({
             paymentNumber: i,
             paymentDate: currentDate.toISOString().split('T')[0],
-            amount: Math.round(periodicPayment * 100) / 100, // Redondear a 2 decimales
+            amount: Math.round(periodicPayment * 100) / 100,
             principal: Math.round(periodicPrincipal * 100) / 100,
             interest: Math.round(periodicInterest * 100) / 100,
             balance: Math.max(0, Math.round(remainingBalance * 100) / 100),
@@ -137,11 +168,10 @@ function generatePaymentSchedule(data) {
 
         // Avanzar fecha para siguiente pago
         if (paymentFrequency === 'Quincenal') {
-            // Lógica especial para quincenal (15 y 30/31 de cada mes)
             if (currentDate.getDate() <= 15) {
                 currentDate.setDate(30);
-                if (currentDate.getDate() !== 30) { // Si el mes no tiene 30, usar el último día
-                    currentDate.setDate(0); // Último día del mes anterior
+                if (currentDate.getDate() !== 30) {
+                    currentDate.setDate(0);
                     currentDate.setMonth(currentDate.getMonth() + 1);
                 }
             } else {
@@ -156,10 +186,12 @@ function generatePaymentSchedule(data) {
     return { schedule };
 }
 
-// --- FUNCIONES DE MIGRACIÓN POR FASE ---
+// ==========================================
+// FUNCIONES DE MIGRACIÓN
+// ==========================================
 
 async function prepareSchema(newDbConnection) {
-    console.log(`--- FASE -1: Preparando esquema de la nueva BD ---`);
+    console.log(`🔧 PREPARANDO ESQUEMA DE BASE DE DATOS...`);
 
     const tablesToUpdate = [
         { tableName: 'users', columnName: 'legacyId', columnType: 'INT' },
@@ -170,47 +202,44 @@ async function prepareSchema(newDbConnection) {
 
     for (const table of tablesToUpdate) {
         const { tableName, columnName, columnType } = table;
-        console.log(`  🛡️  Verificando la columna '${columnName}' en la tabla '${tableName}'...`);
-
+        
         const checkSql = `SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ?`;
         const [rows] = await newDbConnection.execute(checkSql, [newDbConfig.database, tableName, columnName]);
 
         if (rows[0].count === 0) {
-            console.log(`    -> La columna no existe. Creándola...`);
-            if (SIMULATION_MODE) {
-                 console.log(`    [SIM] Se ejecutaría: ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType};`);
-            } else {
+            console.log(`   ➕ Agregando columna ${columnName} a tabla ${tableName}`);
+            if (!SIMULATION_MODE) {
                 const addSql = `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType}`;
                 await newDbConnection.execute(addSql);
-                console.log(`    ✅ Columna '${columnName}' creada en '${tableName}'.`);
             }
-        } else {
-            console.log(`    -> La columna ya existe. No se necesitan cambios.`);
         }
     }
     
-    console.log(`--- FASE -1 COMPLETADA ---\n`);
+    console.log(`   ✅ Esquema preparado\n`);
 }
 
 async function cleanDestinationTables(newDbConnection) {
-    console.log(`--- FASE 0: Limpiando tablas de destino ---`);
+    console.log(`🧹 LIMPIANDO TABLAS DE DESTINO...`);
+    
     if (SIMULATION_MODE) {
-        console.log("  [SIM] En modo real, se vaciarían las tablas de destino.");
+        console.log("   [SIMULACIÓN] Tablas serían limpiadas");
         return;
     }
-    console.log("  🧹 Vaciando tablas de destino para una importación fresca...");
+    
     await newDbConnection.execute('SET FOREIGN_KEY_CHECKS = 0;');
-    await newDbConnection.execute('TRUNCATE TABLE payment_plan;'); // AGREGAR ESTA LÍNEA
+    await newDbConnection.execute('TRUNCATE TABLE payment_plan;');
     await newDbConnection.execute('TRUNCATE TABLE payments_registered;');
     await newDbConnection.execute('TRUNCATE TABLE credits;');
     await newDbConnection.execute('TRUNCATE TABLE clients;');
     await newDbConnection.execute('TRUNCATE TABLE users;');
     await newDbConnection.execute('SET FOREIGN_KEY_CHECKS = 1;');
-    console.log('  ✅ Tablas de destino limpias.');
-    console.log(`--- FASE 0 COMPLETADA ---\n`);
+    
+    console.log('   ✅ Tablas limpiadas\n');
 }
 
 async function getGeoMaps(oldDbConnection, newDbConnection) {
+    console.log(`🗺️  CARGANDO MAPAS GEOGRÁFICOS...`);
+    
     // Obtener mapas de la BD antigua
     const [oldDepts] = await oldDbConnection.execute("SELECT id, nombre FROM departamento");
     const [oldMunis] = await oldDbConnection.execute("SELECT id, nombre, departamento_id FROM departamento_municipio");
@@ -223,8 +252,9 @@ async function getGeoMaps(oldDbConnection, newDbConnection) {
     const newDeptNameToId = newDepts.reduce((acc, row) => ({ ...acc, [row.name]: row.id }), {});
     const newMuniNameToId = newMunis.reduce((acc, row) => ({ ...acc, [row.name]: row.id }), {});
     
+    console.log(`   ✅ Mapas geográficos cargados: ${oldDepts.length} departamentos, ${oldMunis.length} municipios\n`);
+    
     return {
-        // Mapas antiguos (ID antiguo -> nombre y departamento)
         oldDepartmentMap: oldDepts.reduce((acc, row) => ({ ...acc, [row.id]: row.nombre }), {}),
         oldMunicipalityMap: oldMunis.reduce((acc, row) => ({ 
             ...acc, 
@@ -233,16 +263,18 @@ async function getGeoMaps(oldDbConnection, newDbConnection) {
                 departamento_id: row.departamento_id 
             } 
         }), {}),
-        // Mapas nuevos (nombre -> ID nuevo)
         newDeptNameToId,
         newMuniNameToId
     };
 }
 
 async function migrateUsersAndClients(oldDbConnection, newDbConnection, geoMaps) {
-    console.log(`--- FASE 1: Importando USUARIOS y CLIENTES (Lógica Definitiva) ---`);
+    console.log(`👥 MIGRANDO USUARIOS Y CLIENTES...`);
+    
     const [users] = await oldDbConnection.execute("SELECT * FROM users");
     const translationMap = {};
+    let userCount = 0;
+    let clientCount = 0;
 
     for (const user of users) {
         const userRole = USER_ROLE_MAP[user.tipo_usuario];
@@ -252,25 +284,20 @@ async function migrateUsersAndClients(oldDbConnection, newDbConnection, geoMaps)
             translationMap[user.id] = newId;
             const fullName = `${user.nombres || ''} ${user.apellidos || ''}`.trim();
             const email = user.username || `legacy_user_${user.id}@placeholder.com`;
-            // Generar username basado en el email o crear uno único
             const username = user.username ? user.username.toLowerCase().replace(/[@.]/g, '') : `user${user.id}`;
 
             const sql = `INSERT INTO users (id, legacyId, fullName, email, username, hashed_password, phone, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
             const values = [
-                newId, 
-                user.id, 
-                fullName, 
-                email,
-                username, // Agregar username
+                newId, user.id, fullName, email, username,
                 user.password || 'default_password_hash',
-                user.telefono1 || null, 
-                userRole || 'GESTOR', 
-                user.created_at, 
-                user.updated_at
+                user.telefono1 || null, userRole || 'GESTOR', 
+                user.created_at, user.updated_at
             ];
 
-            console.log(`  [${SIMULATION_MODE ? 'SIM': 'REAL'}] Importando USUARIO: ${fullName} (Username: ${username}) (ID Antiguo: ${user.id} -> ID Nuevo: ${newId})`);
+            console.log(`   👤 Usuario: ${fullName} (${username}) - Rol: ${userRole}`);
             if (!SIMULATION_MODE) await newDbConnection.execute(sql, values);
+            userCount++;
+            
         } else if (user.tipo_usuario === 3) { // Es un Cliente
             const newId = generateClientId();
             translationMap[user.id] = newId;
@@ -287,41 +314,29 @@ async function migrateUsersAndClients(oldDbConnection, newDbConnection, geoMaps)
 
             const sql = `INSERT INTO clients (id, legacyId, clientNumber, name, firstName, lastName, cedula, phone, sex, civilStatus, department, municipality, departmentId, municipalityId, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
             const values = [
-                newId, 
-                user.id, 
-                clientNumber, 
-                fullName, 
-                user.nombres || '', 
-                user.apellidos || '', 
-                user.cedula || '', 
-                user.telefono1 || '', 
-                SEX_MAP[user.sexo] || 'Masculino', 
-                CIVIL_STATUS_MAP[user.estado_civil] || 'Soltero', 
-                departmentName || '', // Mantener compatibilidad
-                municipalityName || '', // Mantener compatibilidad
-                departmentId || null, // Nuevo campo relacional
-                municipalityId || null, // Nuevo campo relacional
-                user.direccion || '', // Dirección completa
-                user.created_at || new Date(), 
-                user.updated_at || new Date()
+                newId, user.id, clientNumber, fullName, 
+                user.nombres || '', user.apellidos || '', user.cedula || '', user.telefono1 || '', 
+                SEX_MAP[user.sexo] || 'Masculino', CIVIL_STATUS_MAP[user.estado_civil] || 'Soltero', 
+                departmentName || '', municipalityName || '', departmentId || null, municipalityId || null,
+                user.direccion || '', user.created_at || new Date(), user.updated_at || new Date()
             ];
 
-            console.log(`  [${SIMULATION_MODE ? 'SIM': 'REAL'}] Importando CLIENTE: ${fullName} (ID Antiguo: ${user.id} -> ID Nuevo: ${newId})`);
+            console.log(`   👨‍💼 Cliente: ${fullName} (${clientNumber}) - ${departmentName || 'Sin ubicación'}`);
             if (!SIMULATION_MODE) await newDbConnection.execute(sql, values);
-        } else {
-            console.log(`  [AVISO] Omitiendo registro con ID antiguo ${user.id} (tipo_usuario: ${user.tipo_usuario}) - No es Usuario ni Cliente.`);
+            clientCount++;
         }
     }
-    console.log('  ✅ Usuarios y Clientes importados.');
-    console.log(`--- FASE 1 COMPLETADA ---\n`);
+    
+    console.log(`   ✅ Migrados: ${userCount} usuarios, ${clientCount} clientes\n`);
     return translationMap;
 }
 
 async function migrateCredits(oldDbConnection, newDbConnection, userClientMap) {
-    console.log(`--- FASE 2: Importando CRÉDITOS CON PLANES DE PAGO ---`);
+    console.log(`💳 MIGRANDO CRÉDITOS Y GENERANDO PLANES DE PAGO...`);
+    
     const [credits] = await oldDbConnection.execute("SELECT * FROM prestamos");
     
-    // Obtener información de gestores de la BD antigua
+    // Obtener información de gestores
     const [gestores] = await oldDbConnection.execute("SELECT id, nombres, apellidos FROM users WHERE tipo_usuario = 4");
     const gestorMap = gestores.reduce((acc, gestor) => {
         const fullName = `${gestor.nombres || ''} ${gestor.apellidos || ''}`.trim();
@@ -332,14 +347,13 @@ async function migrateCredits(oldDbConnection, newDbConnection, userClientMap) {
     const [existingSucursal] = await newDbConnection.execute('SELECT * FROM sucursales WHERE name = ?', ['Sucursal Principal']);
     let sucursalId = 'sucursal_principal';
     if (existingSucursal.length === 0) {
-        console.log('  🏢 Creando sucursal principal...');
+        console.log('   🏢 Creando sucursal principal...');
         if (!SIMULATION_MODE) {
             await newDbConnection.execute(
                 'INSERT INTO sucursales (id, name, address, phone, manager, active) VALUES (?, ?, ?, ?, ?, ?)',
                 [sucursalId, 'Sucursal Principal', 'Dirección Principal', '0000-0000', 'Administrador', 1]
             );
         }
-        console.log('  ✅ Sucursal principal creada');
     } else {
         sucursalId = existingSucursal[0].id;
     }
@@ -352,7 +366,6 @@ async function migrateCredits(oldDbConnection, newDbConnection, userClientMap) {
     for (const credit of credits) {
         const newClientId = userClientMap[credit.user_id];
         if (!newClientId) {
-            console.log(`  [AVISO] Omitiendo crédito con ID antiguo ${credit.id} porque su cliente (ID antiguo ${credit.user_id}) no fue migrado.`);
             skippedCount++;
             continue;
         }
@@ -360,42 +373,26 @@ async function migrateCredits(oldDbConnection, newDbConnection, userClientMap) {
         const newId = generateCreditId();
         creditMap[credit.id] = newId;
         const creditNumber = `CRE-${String(credit.id).padStart(6, '0')}`;
-        
-        // Obtener nombre del gestor
         const gestorName = gestorMap[credit.agente_id] || 'Administrador Administrador';
 
         const sql = `INSERT INTO credits (id, legacyId, creditNumber, clientId, clientName, status, applicationDate, approvalDate, amount, principalAmount, interestRate, termMonths, paymentFrequency, currencyType, totalAmount, totalInterest, totalInstallmentAmount, firstPaymentDate, deliveryDate, collectionsManager, branch, branchName, createdAt, updatedAt) VALUES (?, ?, ?, ?, (SELECT name FROM clients WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         const values = [
-            newId, 
-            credit.id, 
-            creditNumber, 
-            newClientId, 
-            newClientId, 
-            CREDIT_STATUS_MAP[credit.estado] || 'Active', // Usar 'Active' en inglés
-            credit.fecha_desembolso || new Date(),
-            credit.fecha_desembolso || null,
-            credit.monto_prestamo || 0,
-            credit.monto_prestamo || 0,
-            credit.tasa_prestamo || 0,
-            credit.plazo_pago || 0,
-            PAYMENT_FREQ_MAP[credit.forma_pago_tipo] || 'Diario',
+            newId, credit.id, creditNumber, newClientId, newClientId, 
+            CREDIT_STATUS_MAP[credit.estado] || 'Active',
+            credit.fecha_desembolso || new Date(), credit.fecha_desembolso || null,
+            credit.monto_prestamo || 0, credit.monto_prestamo || 0, credit.tasa_prestamo || 0,
+            credit.plazo_pago || 0, PAYMENT_FREQ_MAP[credit.forma_pago_tipo] || 'Diario',
             CURRENCY_MAP[credit.moneda_prestamo] || 'Cordobas',
-            credit.monto_financiado || 0,
-            credit.interes_total_pagar || 0,
-            credit.monto_cuota || 0,
-            credit.fecha_primer_pago || null,
-            credit.fecha_desembolso || null,
-            gestorName, // Nombre completo del gestor
-            sucursalId, // ID de la sucursal
-            'Sucursal Principal', // Nombre de la sucursal
-            credit.created_at, 
-            credit.updated_at
+            credit.monto_financiado || 0, credit.interes_total_pagar || 0, credit.monto_cuota || 0,
+            credit.fecha_primer_pago || null, credit.fecha_desembolso || null,
+            gestorName, sucursalId, 'Sucursal Principal',
+            credit.created_at, credit.updated_at
         ];
 
-        console.log(`  [${SIMULATION_MODE ? 'SIM': 'REAL'}] Importando CRÉDITO: ${creditNumber} - Gestor: ${gestorName}`);
+        console.log(`   💰 Crédito: ${creditNumber} - Gestor: ${gestorName} - Monto: C$${credit.monto_prestamo || 0}`);
         if (!SIMULATION_MODE) await newDbConnection.execute(sql, values);
 
-        // *** NUEVA FUNCIONALIDAD: GENERAR PLAN DE PAGOS DURANTE LA MIGRACIÓN ***
+        // Generar plan de pagos para créditos activos
         if (CREDIT_STATUS_MAP[credit.estado] === 'Active') {
             const scheduleData = generatePaymentSchedule({
                 loanAmount: credit.monto_prestamo || 0,
@@ -406,26 +403,17 @@ async function migrateCredits(oldDbConnection, newDbConnection, userClientMap) {
             });
 
             if (scheduleData && scheduleData.schedule.length > 0) {
-                console.log(`    📋 Generando plan de pagos: ${scheduleData.schedule.length} cuotas`);
+                console.log(`      📋 Plan de pagos: ${scheduleData.schedule.length} cuotas`);
                 
                 if (!SIMULATION_MODE) {
-                    // Insertar plan de pagos
                     for (const payment of scheduleData.schedule) {
                         await newDbConnection.execute(
                             'INSERT INTO payment_plan (creditId, paymentNumber, paymentDate, amount, principal, interest, balance) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                            [
-                                newId,
-                                payment.paymentNumber,
-                                `${payment.paymentDate} 12:00:00`,
-                                payment.amount,
-                                payment.principal,
-                                payment.interest,
-                                payment.balance
-                            ]
+                            [newId, payment.paymentNumber, `${payment.paymentDate} 12:00:00`,
+                             payment.amount, payment.principal, payment.interest, payment.balance]
                         );
                     }
 
-                    // Actualizar fecha de vencimiento
                     const lastPayment = scheduleData.schedule[scheduleData.schedule.length - 1];
                     await newDbConnection.execute(
                         'UPDATE credits SET dueDate = ? WHERE id = ?',
@@ -434,29 +422,26 @@ async function migrateCredits(oldDbConnection, newDbConnection, userClientMap) {
                 }
                 creditsWithPlan++;
             } else {
-                console.log(`    ❌ No se pudo generar plan de pagos para ${creditNumber}`);
                 creditsWithoutPlan++;
             }
         }
     }
     
-    if (skippedCount > 0) console.log(`  Se omitieron ${skippedCount} créditos por no encontrar a su cliente/usuario correspondiente.`);
-    console.log(`  ✅ Créditos importados: ${credits.length - skippedCount}`);
-    console.log(`  ✅ Planes de pago generados: ${creditsWithPlan}`);
-    if (creditsWithoutPlan > 0) console.log(`  ⚠️  Créditos sin plan de pagos: ${creditsWithoutPlan}`);
-    console.log(`--- FASE 2 COMPLETADA ---\n`);
+    console.log(`   ✅ Créditos migrados: ${credits.length - skippedCount}`);
+    console.log(`   ✅ Planes de pago generados: ${creditsWithPlan}`);
+    if (creditsWithoutPlan > 0) console.log(`   ⚠️  Sin plan de pagos: ${creditsWithoutPlan}`);
+    console.log('');
+    
     return creditMap;
 }
 
 async function migratePayments(oldDbConnection, newDbConnection, creditMap, userClientMap) {
-    console.log(`--- FASE 3: Importando PAGOS ---`);
+    console.log(`💰 MIGRANDO PAGOS CON GESTORES REALES...`);
     
-    // Crear nueva conexión para pagos si es necesario
     let paymentsConnection = oldDbConnection;
     try {
         await oldDbConnection.ping();
     } catch (error) {
-        console.log('  🔄 Creando nueva conexión para pagos...');
         paymentsConnection = await mysql.createConnection(oldDbConfig);
     }
     
@@ -471,99 +456,236 @@ async function migratePayments(oldDbConnection, newDbConnection, creditMap, user
     });
     
     let skippedCount = 0;
+    let paymentCount = 0;
 
     for (const payment of payments) {
         const newCreditId = creditMap[payment.prestamo_id];
         if (!newCreditId) {
-            console.log(`  [AVISO] Omitiendo pago con ID antiguo ${payment.id} porque su crédito (ID antiguo ${payment.prestamo_id}) no fue migrado.`);
             skippedCount++;
             continue;
         }
         
         const newId = generatePaymentId();
-        // Usar el nombre real del gestor que creó el pago
         const realManagerName = userNameMap[payment.created_user_id] || 'Administrador Administrador';
 
         const sql = `INSERT INTO payments_registered (id, legacyId, creditId, paymentDate, amount, managedBy, status) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const values = [
-            newId, 
-            payment.id, 
-            newCreditId, 
-            payment.fecha_abono, 
-            payment.total_efectivo, 
-            realManagerName, // Usar nombre real del gestor
+            newId, payment.id, newCreditId, payment.fecha_abono, 
+            payment.total_efectivo, realManagerName,
             PAYMENT_STATUS_MAP[payment.estado] || 'valido'
         ];
 
-        console.log(`  [${SIMULATION_MODE ? 'SIM': 'REAL'}] Importando PAGO (ID Antiguo: ${payment.id} -> ID Nuevo: ${newId}) - Gestor: ${realManagerName}`);
+        console.log(`   💵 Pago: C$${payment.total_efectivo} - Gestor: ${realManagerName} - Fecha: ${payment.fecha_abono}`);
         if (!SIMULATION_MODE) await newDbConnection.execute(sql, values);
+        paymentCount++;
     }
-     if (skippedCount > 0) console.log(`  Se omitieron ${skippedCount} pagos por no encontrar su crédito correspondiente.`);
-    console.log('  ✅ Pagos importados.');
     
-    // Cerrar conexión adicional si se creó
+    console.log(`   ✅ Pagos migrados: ${paymentCount}`);
+    if (skippedCount > 0) console.log(`   ⚠️  Pagos omitidos: ${skippedCount}`);
+    
     if (paymentsConnection !== oldDbConnection) {
         await paymentsConnection.end();
     }
     
-    console.log(`--- FASE 3 COMPLETADA ---\n`);
+    console.log('');
 }
 
-// --- FUNCIÓN PRINCIPAL DE MIGRACIÓN ---
-async function runMigration() {
+async function createAdminUser(newDbConnection) {
+    console.log(`👑 CREANDO USUARIO ADMINISTRADOR...`);
+    
+    const adminUsername = 'admin';
+    const adminEmail = 'admin@credinica.com';
+    const adminPassword = 'admin123';
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    
+    // Verificar si ya existe un administrador
+    const [existingAdmin] = await newDbConnection.execute(
+        'SELECT * FROM users WHERE role = ? OR username = ? OR email = ?', 
+        ['ADMINISTRADOR', adminUsername, adminEmail]
+    );
+    
+    if (existingAdmin.length > 0) {
+        console.log('   👤 Actualizando administrador existente...');
+        
+        if (!SIMULATION_MODE) {
+            await newDbConnection.execute(
+                'UPDATE users SET username = ?, email = ?, hashed_password = ?, fullName = ?, updatedAt = ? WHERE id = ?',
+                [adminUsername, adminEmail, hashedPassword, 'Administrador Principal', new Date(), existingAdmin[0].id]
+            );
+        }
+        
+        console.log(`   ✅ Administrador actualizado:`);
+        console.log(`      Username: ${adminUsername}`);
+        console.log(`      Email: ${adminEmail}`);
+        console.log(`      Contraseña: ${adminPassword}`);
+        console.log(`      ID: ${existingAdmin[0].id}`);
+    } else {
+        console.log('   👤 Creando nuevo administrador...');
+        
+        const adminId = `user_${randomUUID()}`;
+        
+        if (!SIMULATION_MODE) {
+            await newDbConnection.execute(
+                'INSERT INTO users (id, fullName, email, username, hashed_password, role, active, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [adminId, 'Administrador Principal', adminEmail, adminUsername, hashedPassword, 'ADMINISTRADOR', 1, new Date(), new Date()]
+            );
+        }
+        
+        console.log(`   ✅ Administrador creado:`);
+        console.log(`      Username: ${adminUsername}`);
+        console.log(`      Email: ${adminEmail}`);
+        console.log(`      Contraseña: ${adminPassword}`);
+        console.log(`      ID: ${adminId}`);
+    }
+    
+    console.log('');
+}
+
+async function performHealthCheck(newDbConnection) {
+    console.log(`🏥 VERIFICACIÓN DE SALUD DEL SISTEMA...`);
+    
+    try {
+        // Verificar tablas principales
+        const tables = ['users', 'clients', 'credits', 'payments_registered', 'payment_plan'];
+        const counts = {};
+        
+        for (const table of tables) {
+            const [result] = await newDbConnection.execute(`SELECT COUNT(*) as count FROM ${table}`);
+            counts[table] = result[0].count;
+            console.log(`   📊 ${table}: ${result[0].count} registros`);
+        }
+
+        // Verificar integridad referencial
+        const [orphanCredits] = await newDbConnection.execute(`
+            SELECT COUNT(*) as count FROM credits c 
+            LEFT JOIN clients cl ON c.clientId = cl.id 
+            WHERE cl.id IS NULL
+        `);
+        
+        const [orphanPayments] = await newDbConnection.execute(`
+            SELECT COUNT(*) as count FROM payments_registered p 
+            LEFT JOIN credits c ON p.creditId = c.id 
+            WHERE c.id IS NULL
+        `);
+
+        const [usersNoPassword] = await newDbConnection.execute(
+            'SELECT COUNT(*) as count FROM users WHERE hashed_password IS NULL'
+        );
+
+        // Verificar administradores
+        const [admins] = await newDbConnection.execute(
+            'SELECT COUNT(*) as count FROM users WHERE role = ?', 
+            ['ADMINISTRADOR']
+        );
+
+        console.log(`\n   🔍 VERIFICACIONES DE INTEGRIDAD:`);
+        console.log(`      Créditos huérfanos: ${orphanCredits[0].count} ${orphanCredits[0].count === 0 ? '✅' : '❌'}`);
+        console.log(`      Pagos huérfanos: ${orphanPayments[0].count} ${orphanPayments[0].count === 0 ? '✅' : '❌'}`);
+        console.log(`      Usuarios sin contraseña: ${usersNoPassword[0].count} ${usersNoPassword[0].count === 0 ? '✅' : '❌'}`);
+        console.log(`      Administradores: ${admins[0].count} ${admins[0].count > 0 ? '✅' : '❌'}`);
+
+        const totalIssues = orphanCredits[0].count + orphanPayments[0].count + usersNoPassword[0].count;
+        
+        if (totalIssues === 0 && admins[0].count > 0) {
+            console.log(`\n   🎉 ¡SISTEMA EN PERFECTO ESTADO!`);
+            console.log(`      ✅ Todos los sistemas funcionando correctamente`);
+        } else {
+            console.log(`\n   ⚠️  Se encontraron ${totalIssues} problemas`);
+            if (admins[0].count === 0) console.log(`      ❌ No hay administradores en el sistema`);
+        }
+
+    } catch (error) {
+        console.error(`   ❌ Error en verificación de salud: ${error.message}`);
+    }
+    
+    console.log('');
+}
+
+// ==========================================
+// FUNCIÓN PRINCIPAL
+// ==========================================
+
+async function runCompleteMigration() {
     let oldDbConnection;
     let newDbConnection;
-    console.log('🚀 Iniciando el script de importación v7.0 (CON PLANES DE PAGO)...');
+    
+    console.log('🚀 ========================================');
+    console.log('🚀 CREDINICA - MIGRACIÓN COMPLETA v1.0.0');
+    console.log('🚀 ========================================\n');
 
     if (SIMULATION_MODE) {
-        console.log("\n**************************************************");
-        console.log("***** MODO SIMULACIÓN DE IMPORTACIÓN ACTIVADO *****");
-        console.log("No se realizarán cambios. Se verificará la nueva lógica de IDs.");
-        console.log("**************************************************\n");
+        console.log("⚠️  MODO SIMULACIÓN ACTIVADO");
+        console.log("   No se realizarán cambios reales\n");
     } else {
-        console.log("\n**************************************************");
-        console.log("***** MODO REAL DE IMPORTACIÓN ACTIVADO *****");
-        console.log("¡¡¡ LOS DATOS SE IMPORTARÁN A LA BASE DE DATOS NUEVA !!!");
-        console.log("**************************************************\n");
+        console.log("🔥 MODO REAL ACTIVADO");
+        console.log("   ¡Los cambios se aplicarán a la base de datos!\n");
     }
 
     try {
-        console.log('🔌 Conectando a las bases de datos...');
+        console.log('🔌 CONECTANDO A BASES DE DATOS...');
         oldDbConnection = await mysql.createConnection(oldDbConfig);
         newDbConnection = await mysql.createConnection(newDbConfig);
-        console.log('✅ Conexiones exitosas.\n');
+        console.log('   ✅ Conexiones establecidas\n');
 
-        await newDbConnection.beginTransaction();
-        console.log('🚦 Transacción iniciada en la BD Nueva.');
+        if (!SIMULATION_MODE) {
+            await newDbConnection.beginTransaction();
+            console.log('🚦 Transacción iniciada\n');
+        }
 
+        // Ejecutar migración completa
         await prepareSchema(newDbConnection);
         await cleanDestinationTables(newDbConnection);
         const geoMaps = await getGeoMaps(oldDbConnection, newDbConnection);
         const userClientMap = await migrateUsersAndClients(oldDbConnection, newDbConnection, geoMaps);
         const creditMap = await migrateCredits(oldDbConnection, newDbConnection, userClientMap);
         await migratePayments(oldDbConnection, newDbConnection, creditMap, userClientMap);
+        await createAdminUser(newDbConnection);
+        await performHealthCheck(newDbConnection);
         
         if (!SIMULATION_MODE) {
             await newDbConnection.commit();
-            console.log('\n💾 ¡¡¡ IMPORTACIÓN COMPLETA Y CAMBIOS GUARDADOS EN LA NUEVA BASE DE DATOS !!!');
+            console.log('💾 ¡¡¡ MIGRACIÓN COMPLETA EXITOSA !!!');
+            console.log('✅ Todos los cambios han sido guardados');
         } else {
             await newDbConnection.rollback();
-            console.log("\n⏪ SIMULACIÓN FINALIZADA. La base de datos nueva NO ha sido modificada.");
-            console.log("Revisa la salida. Si todo es correcto, el ingeniero puede cambiar SIMULATION_MODE a false.");
+            console.log('⏪ SIMULACIÓN COMPLETADA');
+            console.log('   Para ejecutar cambios reales, cambiar SIMULATION_MODE a false');
         }
 
+        console.log('\n🎉 ========================================');
+        console.log('🎉 MIGRACIÓN FINALIZADA CORRECTAMENTE');
+        console.log('🎉 ========================================');
+
     } catch (error) {
-        console.error('\n❌ ¡¡¡ERROR FATAL DURANTE LA IMPORTACIÓN!!! ❌');
+        console.error('\n❌ ========================================');
+        console.error('❌ ERROR FATAL EN LA MIGRACIÓN');
+        console.error('❌ ========================================');
         console.error(error);
-        if (newDbConnection) {
-            console.log('⏪ Revertiendo todos los cambios por error (rollback)...');
+        
+        if (newDbConnection && !SIMULATION_MODE) {
+            console.log('⏪ Revirtiendo cambios...');
             await newDbConnection.rollback();
         }
+        
+        process.exit(1);
     } finally {
         if (oldDbConnection) await oldDbConnection.end();
         if (newDbConnection) await newDbConnection.end();
-        console.log('\n🚪 Script finalizado.');
+        console.log('\n🚪 Conexiones cerradas');
     }
 }
 
-runMigration();
+// Ejecutar migración si se llama directamente
+if (require.main === module) {
+    runCompleteMigration()
+        .then(() => {
+            console.log('\n✅ Script completado exitosamente');
+            process.exit(0);
+        })
+        .catch((error) => {
+            console.error('\n❌ Error fatal:', error);
+            process.exit(1);
+        });
+}
+
+module.exports = { runCompleteMigration };
