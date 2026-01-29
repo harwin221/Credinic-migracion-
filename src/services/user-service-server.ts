@@ -18,10 +18,31 @@ import {
 } from '@/lib/service-response';
 
 // NOTE: This function is separate and used only for the initial setup.
-async function createFirstUser(
-  // ... (code for first user setup)
-) {
-  // ...
+async function createFirstUser(userData: { displayName: string; email: string; password: string }) {
+  try {
+    const { displayName, email, password } = userData;
+    
+    // Check if any users exist
+    const existingUsers: any = await query('SELECT COUNT(*) as count FROM users');
+    if (existingUsers[0].count > 0) {
+      return { success: false, error: 'Ya existe un usuario en el sistema' };
+    }
+    
+    // Create the first admin user
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUserId = generateUserId();
+    const username = 'admin'; // Fixed username for first user
+    
+    await query(
+      'INSERT INTO users (id, fullName, email, username, hashed_password, role, active, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [newUserId, displayName, email, username, hashedPassword, 'ADMINISTRADOR', 1, new Date(), new Date()]
+    );
+    
+    return { success: true, userId: newUserId };
+  } catch (error) {
+    console.error('Error creating first user:', error);
+    return { success: false, error: 'Error al crear el usuario administrador' };
+  }
 }
 
 export async function createUserService(input: CreateUserInput): Promise<ServiceResponse<string>> {
