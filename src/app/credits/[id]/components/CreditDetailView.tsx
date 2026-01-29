@@ -40,7 +40,7 @@ const formatCurrency = (amount?: number) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     
     if (typeof numAmount !== 'number' || isNaN(numAmount)) return 'C$0.00';
-    return `C$${amount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `C$${numAmount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 const formatTime = (dateString?: string) => {
