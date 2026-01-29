@@ -14,7 +14,8 @@ import {
   withErrorHandling, 
   validateOrThrow, 
   ServiceError,
-  NotFoundError
+  NotFoundError,
+  ServiceResponse
 } from '@/lib/service-response';
 
 // NOTE: This function is separate and used only for the initial setup.

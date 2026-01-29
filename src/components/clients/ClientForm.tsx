@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { getDepartmentById, getMunicipalityById } from '@/services/geography-service';
 import { GeographySelect } from '@/components/ui/geography-select';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, PlusCircle, Trash2, Loader2, Briefcase, Store, Edit, Save, Hotel, StickyNote, Tag } from 'lucide-react';
@@ -220,6 +221,10 @@ export function ClientForm({ initialData }: ClientFormProps) {
     const { firstName, lastName, ...restOfData } = data;
     const selectedSucursal = sucursales.find(s => s.id === data.sucursal);
 
+    // Obtener nombres de departamento y municipio basándose en los IDs
+    const department = data.departmentId ? await getDepartmentById(data.departmentId) : null;
+    const municipality = data.municipalityId ? await getMunicipalityById(data.municipalityId) : null;
+
     const clientPayload: Omit<Client, 'id' | 'clientNumber' | 'createdAt'> = {
       name: `${firstName} ${lastName}`.trim(),
       firstName,
@@ -228,6 +233,8 @@ export function ClientForm({ initialData }: ClientFormProps) {
       ...restOfData,
       sucursal: data.sucursal,
       sucursalName: selectedSucursal?.name || '',
+      department: department?.name || '', // Nombre del departamento
+      municipality: municipality?.name || '', // Nombre del municipio
       asalariadoInfo: data.employmentType === 'asalariado' ? asalariadoInfo : undefined,
       comercianteInfo: data.employmentType === 'comerciante' ? comercianteInfo : undefined,
     };

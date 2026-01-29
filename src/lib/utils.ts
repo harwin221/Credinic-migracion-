@@ -588,7 +588,7 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
       const paymentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
       return paymentDateString === asOfDateString;
     })
-    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    .reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0')), 0);
 
   const lastPayment = sortedValidPayments[0];
   const safeDueDate = toISOStringSafe(credit.dueDate);
@@ -600,14 +600,14 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
       return installmentDateString && installmentDateString < asOfDateString;
     });
 
-  const amountDueBeforeToday = installmentsDueBeforeToday.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+  const amountDueBeforeToday = installmentsDueBeforeToday.reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0')), 0);
 
   const totalPaidBeforeToday = validPayments
     .filter(p => {
       const paymentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
       return paymentDateString && paymentDateString < asOfDateString;
     })
-    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    .reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0')), 0);
 
   const surplusFromPast = Math.max(0, totalPaidBeforeToday - amountDueBeforeToday);
 
@@ -618,7 +618,7 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
     return installmentDateString === asOfDateString;
   });
   const isDueToday = !!installmentDueToday;
-  const originalDueTodayAmount = isDueToday ? parseFloat(installmentDueToday?.amount || 0) : 0;
+  const originalDueTodayAmount = isDueToday ? (typeof installmentDueToday?.amount === 'number' ? installmentDueToday.amount : parseFloat(installmentDueToday?.amount || '0')) : 0;
 
   // La cuota del día se ajusta con el excedente de pagos anteriores.
   const dueTodayAmount = Math.max(0, originalDueTodayAmount - surplusFromPast);
@@ -631,7 +631,7 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
     const firstUnpaidInstallment = paymentPlan.find(p => {
       const safePDate = toISOStringSafe(p.paymentDate);
       if (!safePDate || isAfter(startOfDay(parseISO(safePDate)), asOfDate)) return false;
-      cumulativeDue += parseFloat(p.amount);
+      cumulativeDue += (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0'));
       return totalPaid < cumulativeDue - 0.01;
     });
 

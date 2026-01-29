@@ -46,8 +46,8 @@ export function OfflineIndicator() {
     }
   };
 
-  // Si el usuario es ADMIN, no renderizar el componente
-  if (user?.role === 'ADMIN') {
+  // Si el usuario es ADMINISTRADOR, no renderizar el componente
+  if (user?.role === 'ADMINISTRADOR') {
     return null;
   }
 

@@ -8,7 +8,7 @@ import { updateUserPassword as updateUserPasswordServer } from './user-service-s
  * Llama a la acción del servidor, que se encargará de actualizar la contraseña en la base de datos.
  */
 export async function updateUserPassword(userId: string, passwordData: { currentPassword: string; newPassword: string; confirmPassword: string }): Promise<void> {
-  const result = await updateUserPasswordServer(userId, passwordData);
+  const result = await updateUserPasswordServer(userId, passwordData.newPassword);
   if (!result.success) {
     throw new Error(result.error || 'No se pudo actualizar la contraseña en la base de datos.');
   }
