@@ -375,9 +375,10 @@ export const cleanDataForDatabase = (data: any) => {
   return cleanedData;
 };
 
-export const formatCurrency = (amount: number = 0): string => {
-  if (typeof amount !== 'number' || isNaN(amount)) return 'C$0.00';
-  return `C$${amount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export const formatCurrency = (amount?: number | undefined): string => {
+  const numAmount = amount ?? 0;
+  if (typeof numAmount !== 'number' || isNaN(numAmount)) return 'C$0.00';
+  return `C$${numAmount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 export function generateReceiptText(
