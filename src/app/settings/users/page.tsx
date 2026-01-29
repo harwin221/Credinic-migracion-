@@ -88,7 +88,7 @@ export default function UsersPage() {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(user => 
         user.fullName.toLowerCase().includes(term) ||
-        user.email.toLowerCase().includes(term) ||
+        user.username.toLowerCase().includes(term) ||
         user.role.toLowerCase().includes(term) ||
         (user.sucursalName && user.sucursalName.toLowerCase().includes(term))
       );
@@ -208,7 +208,7 @@ export default function UsersPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nombre, email o rol..."
+            placeholder="Buscar por nombre, usuario o rol..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -242,7 +242,7 @@ export default function UsersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Usuario</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Sucursal</TableHead>
               <TableHead>Estado</TableHead>
@@ -260,7 +260,7 @@ export default function UsersPage() {
               filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium uppercase">{user.fullName}</TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.username}</TableCell>
                   <TableCell className="uppercase">{user.role}</TableCell>
                   <TableCell className="uppercase">{user.sucursalName}</TableCell>
                   <TableCell>
