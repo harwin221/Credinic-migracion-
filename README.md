@@ -240,8 +240,8 @@ Este proyecto es propiedad de CrediNica. Todos los derechos reservados.
 ## 📞 Soporte
 
 Para soporte técnico o consultas:
-- Email: soporte@credinica.com
-- Teléfono: +505 xxxx-xxxx
+- Email: harwinrueda221@gmail.com
+- Teléfono: +505 5756-7451
 
 ## 🔄 Changelog
 
@@ -256,6 +256,6 @@ Para soporte técnico o consultas:
 ---
 
 <div align="center">
-  <p>Desarrollado con ❤️ para CrediNica</p>
+  <p>Desarrollado con ❤️ por Harwin Rueda Herrera para CrediNica</p>
   <p>© 2026 CrediNica. Todos los derechos reservados.</p>
 </div>
