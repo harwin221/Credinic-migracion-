@@ -89,13 +89,37 @@ export async function getPortfolioForGestor(gestorId: string): Promise<{
                     registeredPayments: paymentsByCreditId.get(credit.id) || [],
                     paymentPlan: paymentPlansByCreditId.get(credit.id) || []
                 };
+                
+                // Debug log para el crédito específico
+                if (credit.clientName && credit.clientName.includes('FELIPA')) {
+                    console.log('DEBUG FELIPA - Credit data:', {
+                        clientName: credit.clientName,
+                        creditId: credit.id,
+                        paymentPlanCount: creditWithDetails.paymentPlan.length,
+                        paymentsCount: creditWithDetails.registeredPayments.length,
+                        asOfDate: asOfDate
+                    });
+                }
+                
                 const details = calculateCreditStatusDetails(creditWithDetails as CreditDetail, asOfDate);
+                
+                // Debug log para los detalles calculados
+                if (credit.clientName && credit.clientName.includes('FELIPA')) {
+                    console.log('DEBUG FELIPA - Calculated details:', {
+                        overdueAmount: details.overdueAmount,
+                        isDueToday: details.isDueToday,
+                        lateDays: details.lateDays,
+                        paidToday: details.paidToday,
+                        isExpired: details.isExpired
+                    });
+                }
+                
                 return {
                     ...creditWithDetails,
                     details,
                 };
             } catch (error) {
-                console.error(`Error processing credit ${credit.id}:`, error);
+                console.error(`Error processing credit ${credit.id} (${credit.clientName}):`, error);
                 // Retornar crédito con detalles por defecto en caso de error
                 return {
                     ...credit,

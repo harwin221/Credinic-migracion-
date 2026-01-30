@@ -597,6 +597,20 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
     // --- LÓGICA DE FECHAS REFACTORIZADA PARA EVITAR ERRORES DE ZONA HORARIA ---
     const asOfDateString = asOfDateStr ? formatDateForUser(asOfDateStr, 'yyyy-MM-dd') : todayInNicaragua();
 
+    // Debug log para FELIPA
+    const isFelipaCredit = credit.clientName && credit.clientName.includes('FELIPA');
+    if (isFelipaCredit) {
+      console.log('DEBUG FELIPA - Date calculations:', {
+        asOfDateString,
+        paymentPlanLength: paymentPlan.length,
+        paymentPlanDates: paymentPlan.map(p => ({
+          number: p.paymentNumber,
+          date: p.paymentDate,
+          dateString: p.paymentDate ? p.paymentDate.split('T')[0] : 'NO_DATE'
+        }))
+      });
+    }
+
     const paidToday = validPayments
       .filter(p => {
         try {
@@ -651,10 +665,37 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
 
     let overdueAmount = Math.max(0, amountDueBeforeToday - totalPaidBeforeToday);
 
+    // Debug log para FELIPA
+    if (isFelipaCredit) {
+      console.log('DEBUG FELIPA - Overdue calculation:', {
+        amountDueBeforeToday,
+        totalPaidBeforeToday,
+        overdueAmount,
+        installmentsDueBeforeToday: installmentsDueBeforeToday.map(p => ({
+          number: p.paymentNumber,
+          date: p.paymentDate,
+          amount: p.amount
+        }))
+      });
+    }
+
     const installmentDueToday = paymentPlan.find(p => {
       try {
         const installmentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
-        return installmentDateString === asOfDateString;
+        const isMatch = installmentDateString === asOfDateString;
+        
+        // Debug log para FELIPA
+        if (isFelipaCredit) {
+          console.log('DEBUG FELIPA - Checking installment:', {
+            paymentNumber: p.paymentNumber,
+            paymentDate: p.paymentDate,
+            installmentDateString,
+            asOfDateString,
+            isMatch
+          });
+        }
+        
+        return isMatch;
       } catch (error) {
         console.error('Error finding installment due today:', error);
         return false;
@@ -663,6 +704,19 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
     
     const isDueToday = !!installmentDueToday;
     const originalDueTodayAmount = isDueToday ? (typeof installmentDueToday?.amount === 'number' ? installmentDueToday.amount : parseFloat(installmentDueToday?.amount || '0')) : 0;
+
+    // Debug log para FELIPA
+    if (isFelipaCredit) {
+      console.log('DEBUG FELIPA - Due today calculation:', {
+        installmentDueToday: installmentDueToday ? {
+          number: installmentDueToday.paymentNumber,
+          date: installmentDueToday.paymentDate,
+          amount: installmentDueToday.amount
+        } : null,
+        isDueToday,
+        originalDueTodayAmount
+      });
+    }
 
     // La cuota del día se ajusta con el excedente de pagos anteriores.
     const dueTodayAmount = Math.max(0, originalDueTodayAmount - surplusFromPast);
