@@ -111,7 +111,7 @@ export async function getPortfolioForGestor(gestorId: string): Promise<{
                         isDueToday: false,
                         lastPaymentDate: undefined,
                         firstUnpaidDate: undefined,
-                        conamiCategory: 'A',
+                        conamiCategory: 'A' as const,
                         totalInstallmentAmount: credit.totalInstallmentAmount || 0,
                         dueTodayAmount: 0
                     }
