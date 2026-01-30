@@ -269,7 +269,7 @@ export function generatePaymentSchedule(data: PaymentScheduleArgs): CalculatedPa
       id: `payment_${i}`,
       creditId: 'calc',
       paymentNumber: i,
-      paymentDate: format(adjustedDate, 'yyyy-MM-dd'), // Guardar la fecha ajustada
+      paymentDate: format(adjustedDate, 'yyyy-MM-dd') + 'T12:00:00.000Z', // Usar mediodía UTC para evitar problemas de zona horaria
       amount: periodicPayment,
       principal: periodicPrincipal,
       interest: periodicInterest,
@@ -352,7 +352,7 @@ export function generatePaymentSchedule(data: PaymentScheduleArgs): CalculatedPa
       for (let i = 0; i < extensionDays; i++) {
         finalDate = adjustToNextBusinessDay(addDays(finalDate, 1), 'Diario', holidays);
       }
-      lastPayment.paymentDate = format(finalDate, 'yyyy-MM-dd');
+      lastPayment.paymentDate = format(finalDate, 'yyyy-MM-dd') + 'T12:00:00.000Z';
     }
   }
 

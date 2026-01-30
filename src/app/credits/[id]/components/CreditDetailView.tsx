@@ -470,7 +470,7 @@ export function CreditDetailView({ credit: initialCredit, onPaymentSuccess }: Cr
                                     {(credit.paymentPlan || []).map((p) => (
                                         <TableRow key={p.paymentNumber}>
                                             <TableCell>{p.paymentNumber}</TableCell>
-                                            <TableCell>{formatDate(p.paymentDate)}</TableCell>
+                                            <TableCell>{formatDateForUser(p.paymentDate, 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>{formatCurrency(p.principal)}</TableCell>
                                             <TableCell>{formatCurrency(p.interest)}</TableCell>
                                             <TableCell>{formatCurrency(p.amount)}</TableCell>
