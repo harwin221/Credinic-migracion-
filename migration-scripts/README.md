@@ -1,178 +1,133 @@
-# Scripts de Migración CrediNica
+# 🚀 MIGRACIÓN DE BASE DE DATOS - CREDINICA
 
-Esta carpeta contiene el script maestro de migración y herramientas auxiliares para migrar desde sistemas anteriores al nuevo sistema CrediNica.
+Este directorio contiene los scripts para migrar la base de datos antigua a la nueva estructura con IDs bonitos y mejoras inteligentes.
 
-## 🚀 Script Principal
+## � ARCHIVOS INCLUIDOS
 
-### `complete-system-migration.js`
-**Script maestro que realiza la migración completa del sistema.**
+- `migration-fase1.js` - Migra usuarios y clientes con sucursales inteligentes
+- `migration-fase2.js` - Migra créditos con decimales corregidos
+- `migration-fase3.js` - Migra pagos en lotes para evitar timeouts
+- `verificar-migracion.js` - Verifica el estado de la migración
+- `README.md` - Este archivo de instrucciones
 
-**Funcionalidades:**
-- ✅ Migración completa de usuarios, clientes, créditos y pagos
-- ✅ Generación automática de planes de pago
-- ✅ Creación de usuario administrador
-- ✅ Corrección de nombres de gestores en pagos
-- ✅ Verificación de salud del sistema
-- ✅ Modo simulación para pruebas seguras
+## ⚙️ CONFIGURACIÓN PREVIA
 
-**Uso:**
+1. **Verificar archivo .env** en la raíz del proyecto con:
+   ```
+   OLD_DB_HOST=mysql.freehostia.com
+   OLD_DB_USER=harrue0_baseantigua
+   OLD_DB_PASSWORD=Hmrh.020790
+   OLD_DB_DATABASE=harrue0_baseantigua
+
+   NEW_DB_HOST=mysql.freehostia.com
+   NEW_DB_USER=harrue9_credinica
+   NEW_DB_PASSWORD=Hmrh.020790
+   NEW_DB_DATABASE=harrue9_credinica
+   ```
+
+2. **Instalar dependencias** (si no están instaladas):
+   ```bash
+   npm install mysql2 dotenv
+   ```
+
+## 🎯 INSTRUCCIONES DE MIGRACIÓN
+
+### IMPORTANTE: Ejecutar en orden estricto
+
 ```bash
-# Configurar variables de entorno en .env
-OLD_DB_HOST=host_sistema_anterior
-OLD_DB_USER=usuario_anterior
-OLD_DB_PASSWORD=contraseña_anterior
-OLD_DB_DATABASE=base_datos_anterior
+# Navegar al directorio
+cd migration-scripts
 
-NEW_DB_HOST=localhost
-NEW_DB_USER=root
-NEW_DB_PASSWORD=tu_contraseña
-NEW_DB_DATABASE=credinica
+# FASE 1: Usuarios y Clientes
+node migration-fase1.js
 
-# Ejecutar migración completa
-node migration-scripts/complete-system-migration.js
+# FASE 2: Créditos
+node migration-fase2.js
+
+# FASE 3: Pagos
+node migration-fase3.js
+
+# Verificar resultado final
+node verificar-migracion.js
 ```
 
-## 🔧 Herramientas Auxiliares
+## 📊 QUÉ HACE CADA FASE
 
-### `database-health-check.js`
-Verificación completa de salud de la base de datos.
+### FASE 1: USUARIOS Y CLIENTES
+- ✅ Limpia todas las tablas de destino
+- ✅ Resetea contadores
+- ✅ Crea sucursales: "Sucursal León" y "Sucursal Jinotepe"
+- ✅ Migra usuarios del sistema (ADMINISTRADOR, FINANZAS, GESTOR)
+- ✅ Migra clientes con **lógica inteligente de sucursales**:
+  - Si dirección/departamento/municipio contiene "León" → Sucursal León
+  - Todos los demás → Sucursal Jinotepe
+- ✅ Genera IDs bonitos: `user_001`, `cli_001`, `CLI-0001`
+- ✅ Guarda mapa de traducción para siguientes fases
 
-### `credinica-toolkit.js`
-Herramientas de mantenimiento y utilidades del sistema.
+### FASE 2: CRÉDITOS
+- ✅ Migra créditos con IDs bonitos: `cred_001`, `CRE-00001`
+- ✅ **Corrige decimales innecesarios**:
+  - `3.00` → `3` (elimina .00)
+  - `2.50` → `2.50` (preserva decimales reales)
+- ✅ Asigna gestores correctamente
+- ✅ Hereda sucursal del cliente
+- ✅ Guarda mapa de créditos para Fase 3
 
-## ⚙️ Configuración
+### FASE 3: PAGOS
+- ✅ Migra pagos en **lotes de 100** para evitar timeouts
+- ✅ **Reconexión automática** entre lotes
+- ✅ IDs bonitos: `pay_001`, `pay_002`, etc.
+- ✅ Manejo robusto de errores
 
-### Variables de Entorno Requeridas
-```env
-# Base de Datos Antigua (Origen)
-OLD_DB_HOST=tu_host_antiguo
-OLD_DB_USER=tu_usuario_antiguo
-OLD_DB_PASSWORD=tu_contraseña_antigua
-OLD_DB_DATABASE=tu_base_de_datos_antigua
+## 🔍 VERIFICACIÓN
 
-# Base de Datos Nueva (Destino)
-NEW_DB_HOST=tu_host_nuevo
-NEW_DB_USER=tu_usuario_nuevo
-NEW_DB_PASSWORD=tu_contraseña_nueva
-NEW_DB_DATABASE=tu_base_de_datos_nueva
-```
-
-## 🛡️ Modo Simulación
-
-El script principal incluye un modo de simulación que permite probar la migración sin realizar cambios reales:
-
-```javascript
-// En complete-system-migration.js
-const SIMULATION_MODE = true;  // true = solo simula, false = ejecuta cambios
-```
-
-## 📊 Proceso de Migración
-
-### Fase 1: Preparación
-- Verificación de esquema de base de datos
-- Creación de columnas `legacyId` si no existen
-- Limpieza de tablas de destino
-
-### Fase 2: Migración de Datos
-1. **Usuarios y Clientes**: Migra usuarios del sistema y clientes
-2. **Créditos**: Migra créditos con generación automática de planes de pago
-3. **Pagos**: Migra pagos con corrección de nombres de gestores
-4. **Usuario Admin**: Crea/actualiza usuario administrador
-
-### Fase 3: Verificación
-- Verificación de integridad referencial
+El script `verificar-migracion.js` muestra:
 - Conteo de registros migrados
-- Detección de problemas potenciales
+- Ejemplos de IDs bonitos
+- Distribución por sucursales
+- Estado general de la migración
 
-## 🔍 Verificaciones de Salud
+## ⚠️ NOTAS IMPORTANTES
 
-El script incluye verificaciones automáticas:
-- ✅ Créditos huérfanos (sin cliente)
-- ✅ Pagos huérfanos (sin crédito)
-- ✅ Usuarios sin contraseña
-- ✅ Existencia de administradores
-- ✅ Integridad de datos geográficos
+1. **ORDEN OBLIGATORIO**: Las fases deben ejecutarse en orden (1→2→3)
+2. **DEPENDENCIAS**: Cada fase necesita los archivos de la anterior
+3. **ARCHIVOS TEMPORALES**: Se crean `translation-map.json` y `credit-map.json`
+4. **MODO SIMULACIÓN**: Cambiar `SIMULATION_MODE = true` para probar sin cambios
+5. **BACKUP**: Siempre hacer backup antes de migrar
 
-## 📋 Mapeo de Datos
+## 🎯 RESULTADOS ESPERADOS
 
-### Roles de Usuario
-- `1` → `ADMINISTRADOR`
-- `2` → `FINANZAS`
-- `4` → `GESTOR`
+Después de la migración completa:
+- **214 clientes** con IDs bonitos y sucursales asignadas
+- **435 créditos** con decimales corregidos
+- **Todos los pagos** migrados exitosamente
+- **Contadores** reseteados correctamente
+- **Dashboard** funcionando con lógica corregida
 
-### Estados de Crédito
-- `1` → `Active`
-- `2` → `Paid`
-- `3` → `Expired`
-- `4` → `Rejected`
+## 🆘 SOLUCIÓN DE PROBLEMAS
 
-### Frecuencia de Pago
-- `1` → `Diario`
-- `2` → `Semanal`
-- `3` → `Quincenal`
-- `4` → `Catorcenal`
+### Error: "No se encontró translation-map.json"
+- **Solución**: Ejecutar primero `migration-fase1.js`
 
-### Estado Civil
-- `0` → `Soltero`
-- `1` → `Casado`
-- `2` → `Union Libre`
-- `3` → `Viudo(a)`
-- `4` → `Divorciado`
+### Error: "Can't add new command when connection is in closed state"
+- **Solución**: La Fase 3 maneja esto automáticamente con reconexión
 
-## 🚨 Características de Seguridad
+### Error de conexión a BD
+- **Verificar**: Credenciales en archivo `.env`
+- **Verificar**: Conectividad a `mysql.freehostia.com`
 
-### Transacciones Atómicas
-- Toda la migración se ejecuta en una sola transacción
-- Si hay error, se revierten todos los cambios automáticamente
-- La base de datos queda intacta en caso de fallo
-
-### Proceso Idempotente
-- Se puede ejecutar múltiples veces sin duplicar datos
-- Limpia tablas de destino antes de cada ejecución
-- Garantiza migración fresca en cada ejecución
-
-### Manejo de Errores
-- Continúa la migración aunque encuentre datos inválidos
-- Registra y reporta problemas encontrados
-- No se detiene por registros individuales problemáticos
-
-## 📈 Resultados Esperados
-
-Después de una migración exitosa:
-- ✅ Todos los usuarios migrados con username y email
-- ✅ Todos los clientes con información geográfica
-- ✅ Todos los créditos activos con planes de pago generados
-- ✅ Todos los pagos con nombres reales de gestores
-- ✅ Usuario administrador creado (username: admin, password: admin123)
-
-## 🔧 Solución de Problemas
-
-### Error de Conexión
+### Verificar progreso
 ```bash
-Error: connect ECONNREFUSED
+node verificar-migracion.js
 ```
-**Solución**: Verificar credenciales de base de datos en `.env`
 
-### Error de Permisos
-```bash
-Error: Access denied for user
-```
-**Solución**: Verificar permisos de usuario en MySQL
+## � SOPORTE
 
-### Datos Faltantes
-```bash
-[AVISO] Omitiendo registro...
-```
-**Solución**: Normal, el script omite registros inválidos y continúa
-
-## 📞 Soporte
-
-Para problemas con la migración:
-1. Revisar logs de consola
-2. Verificar variables de entorno
-3. Ejecutar en modo simulación primero
-4. Contactar soporte técnico si persisten problemas
+Si hay problemas durante la migración:
+1. Verificar logs de error en consola
+2. Ejecutar `verificar-migracion.js` para ver estado actual
+3. Los archivos `translation-map.json` y `credit-map.json` contienen mapeos importantes
 
 ---
 
-**Nota**: Siempre hacer backup de la base de datos antes de ejecutar la migración en producción.
+**¡IMPORTANTE!** Siempre hacer backup de la base de datos antes de ejecutar la migración.

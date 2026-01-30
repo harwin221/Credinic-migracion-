@@ -68,15 +68,24 @@ export function GestorDashboard({ user, initialPortfolio, initialSummary }: { us
     const categories: CategorizedCredits = { paidToday: [], dueToday: [], overdue: [], expired: [], upToDate: [] };
     
     portfolio.forEach(credit => {
+      // Prioridad 1: Cobrado Hoy (máxima prioridad)
       if (credit.details.paidToday > 0) {
         categories.paidToday.push(credit);
-      } else if (credit.details.isDueToday) {
+      }
+      // Prioridad 2: Cuota del Día (incluye créditos con mora que tienen cuota hoy)
+      else if (credit.details.isDueToday) {
         categories.dueToday.push(credit);
-      } else if (credit.details.isExpired) {
+      }
+      // Prioridad 3: Vencidos
+      else if (credit.details.isExpired) {
         categories.expired.push(credit);
-      } else if (credit.details.overdueAmount > 0) {
+      }
+      // Prioridad 4: En Mora (solo si NO tiene cuota hoy)
+      else if (credit.details.overdueAmount > 0) {
         categories.overdue.push(credit);
-      } else {
+      }
+      // Prioridad 5: Al Día (caso por defecto)
+      else {
         categories.upToDate.push(credit);
       }
     });
