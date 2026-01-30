@@ -26,103 +26,147 @@ export async function getPortfolioForGestor(gestorId: string): Promise<{
     portfolio: PortfolioCredit[],
     dailySummary: GestorDashboardData,
 }> {
-    const gestor = await getUserServerSide(gestorId);
-    if (!gestor) {
-        console.warn(`Gestor with ID ${gestorId} not found.`);
-        return { portfolio: [], dailySummary: {} as GestorDashboardData };
-    }
-    const gestorName = gestor.fullName;
-
-    // 1. Obtener todos los créditos activos del gestor.
-    const { credits: activeCredits } = await getCreditsAdminServerSide({ 
-        gestorName: gestorName, 
-        status: 'Active',
-        user: gestor,
-    });
-
-    if (!Array.isArray(activeCredits) || activeCredits.length === 0) {
-        const dailySummary = await getGestorDashboardData(gestor, []);
-        return { portfolio: [], dailySummary: dailySummary };
-    }
-    
-    // 2. Obtener TODOS los pagos y planes de pago para esos créditos en consultas optimizadas.
-    const creditIds = activeCredits.map(c => c.id);
-
-    const placeholders = creditIds.map(() => '?').join(',');
-    const [paymentRows, paymentPlanRows] = await Promise.all([
-        query(`SELECT * FROM payments_registered WHERE creditId IN (${placeholders})`, creditIds),
-        query(`SELECT * FROM payment_plan WHERE creditId IN (${placeholders})`, creditIds)
-    ]);
-
-
-    // 3. Agrupar los datos por creditId para fácil acceso.
-    const paymentsByCreditId = new Map<string, RegisteredPayment[]>();
-    for (const payment of paymentRows) {
-        if (!paymentsByCreditId.has(payment.creditId)) {
-            paymentsByCreditId.set(payment.creditId, []);
+    try {
+        const gestor = await getUserServerSide(gestorId);
+        if (!gestor) {
+            console.warn(`Gestor with ID ${gestorId} not found.`);
+            return { 
+                portfolio: [], 
+                dailySummary: {
+                    recuperacionTotal: 0,
+                    metaDeCobro: 0,
+                    totalClientesCobrados: 0,
+                    pendingRenewals: 0
+                }
+            };
         }
-        paymentsByCreditId.get(payment.creditId)!.push(payment);
-    }
-    const paymentPlansByCreditId = new Map<string, any[]>();
-    for (const plan of paymentPlanRows) {
-        if (!paymentPlansByCreditId.has(plan.creditId)) {
-            paymentPlansByCreditId.set(plan.creditId, []);
+        const gestorName = gestor.fullName;
+
+        // 1. Obtener todos los créditos activos del gestor.
+        const { credits: activeCredits } = await getCreditsAdminServerSide({ 
+            gestorName: gestorName, 
+            status: 'Active',
+            user: gestor,
+        });
+
+        if (!Array.isArray(activeCredits) || activeCredits.length === 0) {
+            const dailySummary = await getGestorDashboardData(gestor, []);
+            return { portfolio: [], dailySummary: dailySummary };
         }
-        paymentPlansByCreditId.get(plan.creditId)!.push(plan);
-    }
-    
-    const asOfDate = toNicaraguaTime(nowInNicaragua());
-
-    // 4. Procesar cada crédito usando los datos ya obtenidos en memoria.
-    const portfolioCredits = activeCredits.map(credit => {
-        const creditWithDetails = { 
-            ...credit, 
-            registeredPayments: paymentsByCreditId.get(credit.id) || [],
-            paymentPlan: paymentPlansByCreditId.get(credit.id) || []
-        };
-        const details = calculateCreditStatusDetails(creditWithDetails as CreditDetail, asOfDate);
-        return {
-            ...creditWithDetails,
-            details,
-        };
-    });
-    
-    const statusOrder: Record<string, number> = {
-        'dueToday': 1,
-        'overdue': 2,
-        'expired': 3, 
-        'upToDate': 4
-    };
-    
-    const getSortKey = (details: CreditStatusDetails): string => {
-        if(details.isDueToday) return 'dueToday';
-        if(details.overdueAmount > 0) return 'overdue';
-        if(details.isExpired) return 'expired';
-        return 'upToDate';
-    }
-    
-    const paidTodayCredits = portfolioCredits.filter(c => c.details.paidToday > 0);
-    const notPaidTodayCredits = portfolioCredits.filter(c => c.details.paidToday === 0);
-
-    const sortedNotPaidCredits = notPaidTodayCredits.sort((a, b) => {
-        const keyA = getSortKey(a.details);
-        const keyB = getSortKey(b.details);
         
-        if (statusOrder[keyA] !== statusOrder[keyB]) {
-            return statusOrder[keyA] - statusOrder[keyB];
-        }
-        if (keyA === 'overdue') {
-            return b.details.lateDays - a.details.lateDays;
-        }
-        return 0;
-    });
+        // 2. Obtener TODOS los pagos y planes de pago para esos créditos en consultas optimizadas.
+        const creditIds = activeCredits.map(c => c.id);
 
-    const dailySummary = await getGestorDashboardData(gestor, activeCredits);
+        const placeholders = creditIds.map(() => '?').join(',');
+        const [paymentRows, paymentPlanRows] = await Promise.all([
+            query(`SELECT * FROM payments_registered WHERE creditId IN (${placeholders})`, creditIds),
+            query(`SELECT * FROM payment_plan WHERE creditId IN (${placeholders})`, creditIds)
+        ]);
 
-    return {
-        portfolio: [...paidTodayCredits, ...sortedNotPaidCredits],
-        dailySummary: dailySummary
-    };
+        // 3. Agrupar los datos por creditId para fácil acceso.
+        const paymentsByCreditId = new Map<string, RegisteredPayment[]>();
+        for (const payment of paymentRows) {
+            if (!paymentsByCreditId.has(payment.creditId)) {
+                paymentsByCreditId.set(payment.creditId, []);
+            }
+            paymentsByCreditId.get(payment.creditId)!.push(payment);
+        }
+        const paymentPlansByCreditId = new Map<string, any[]>();
+        for (const plan of paymentPlanRows) {
+            if (!paymentPlansByCreditId.has(plan.creditId)) {
+                paymentPlansByCreditId.set(plan.creditId, []);
+            }
+            paymentPlansByCreditId.get(plan.creditId)!.push(plan);
+        }
+        
+        const asOfDate = toNicaraguaTime(nowInNicaragua());
+
+        // 4. Procesar cada crédito usando los datos ya obtenidos en memoria.
+        const portfolioCredits = activeCredits.map(credit => {
+            try {
+                const creditWithDetails = { 
+                    ...credit, 
+                    registeredPayments: paymentsByCreditId.get(credit.id) || [],
+                    paymentPlan: paymentPlansByCreditId.get(credit.id) || []
+                };
+                const details = calculateCreditStatusDetails(creditWithDetails as CreditDetail, asOfDate);
+                return {
+                    ...creditWithDetails,
+                    details,
+                };
+            } catch (error) {
+                console.error(`Error processing credit ${credit.id}:`, error);
+                // Retornar crédito con detalles por defecto en caso de error
+                return {
+                    ...credit,
+                    registeredPayments: [],
+                    paymentPlan: [],
+                    details: {
+                        remainingBalance: credit.totalAmount || 0,
+                        overdueAmount: 0,
+                        lateDays: 0,
+                        currentLateFee: 0,
+                        paidToday: 0,
+                        isExpired: false,
+                        isDueToday: false,
+                        lastPaymentDate: undefined,
+                        firstUnpaidDate: undefined,
+                        conamiCategory: 'A',
+                        totalInstallmentAmount: credit.totalInstallmentAmount || 0,
+                        dueTodayAmount: 0
+                    }
+                };
+            }
+        });
+        
+        const statusOrder: Record<string, number> = {
+            'dueToday': 1,
+            'overdue': 2,
+            'expired': 3, 
+            'upToDate': 4
+        };
+        
+        const getSortKey = (details: CreditStatusDetails): string => {
+            if(details.isDueToday) return 'dueToday';
+            if(details.overdueAmount > 0) return 'overdue';
+            if(details.isExpired) return 'expired';
+            return 'upToDate';
+        }
+        
+        const paidTodayCredits = portfolioCredits.filter(c => c.details.paidToday > 0);
+        const notPaidTodayCredits = portfolioCredits.filter(c => c.details.paidToday === 0);
+
+        const sortedNotPaidCredits = notPaidTodayCredits.sort((a, b) => {
+            const keyA = getSortKey(a.details);
+            const keyB = getSortKey(b.details);
+            
+            if (statusOrder[keyA] !== statusOrder[keyB]) {
+                return statusOrder[keyA] - statusOrder[keyB];
+            }
+            if (keyA === 'overdue') {
+                return b.details.lateDays - a.details.lateDays;
+            }
+            return 0;
+        });
+
+        const dailySummary = await getGestorDashboardData(gestor, activeCredits);
+
+        return {
+            portfolio: [...paidTodayCredits, ...sortedNotPaidCredits],
+            dailySummary: dailySummary
+        };
+    } catch (error) {
+        console.error('Error in getPortfolioForGestor:', error);
+        return { 
+            portfolio: [], 
+            dailySummary: {
+                recuperacionTotal: 0,
+                metaDeCobro: 0,
+                totalClientesCobrados: 0,
+                pendingRenewals: 0
+            }
+        };
+    }
 }
 
 
@@ -131,73 +175,94 @@ export async function getPortfolioForGestor(gestorId: string): Promise<{
  * Optimizado para rendimiento al aceptar datos pre-cargados.
  */
 export async function getGestorDashboardData(gestor: User, activeCredits: CreditDetail[]): Promise<GestorDashboardData> {
-    const gestorName = gestor.fullName;
+    try {
+        const gestorName = gestor.fullName;
 
-    const { collections } = await generateDailyActivityReport(gestor.id);
-    
-    let metaDeCobro = 0;
-    const clientsPaidToday = new Set<string>();
-
-    const asOfDate = toNicaraguaTime(nowInNicaragua());
-
-    if (activeCredits.length > 0) {
-        const creditIds = activeCredits.map(c => c.id);
-        const placeholders = creditIds.map(() => '?').join(',');
+        const { collections } = await generateDailyActivityReport(gestor.id);
         
-        const [paymentPlans, paymentRows]: [any[], any[]] = await Promise.all([
-             query(`SELECT * FROM payment_plan WHERE creditId IN (${placeholders})`, creditIds),
-             query(`SELECT * FROM payments_registered WHERE creditId IN (${placeholders})`, creditIds)
-        ]);
+        let metaDeCobro = 0;
+        const clientsPaidToday = new Set<string>();
 
-        const paymentsByCreditId = new Map<string, any[]>();
-        paymentRows.forEach(p => {
-            if (!paymentsByCreditId.has(p.creditId)) paymentsByCreditId.set(p.creditId, []);
-            paymentsByCreditId.get(p.creditId)!.push(p);
-        });
+        const asOfDate = toNicaraguaTime(nowInNicaragua());
 
-        const paymentPlansByCreditId = new Map<string, any[]>();
-        paymentPlans.forEach(p => {
-            if (!paymentPlansByCreditId.has(p.creditId)) paymentPlansByCreditId.set(p.creditId, []);
-            paymentPlansByCreditId.get(p.creditId)!.push(p);
-        });
+        if (activeCredits.length > 0) {
+            const creditIds = activeCredits.map(c => c.id);
+            const placeholders = creditIds.map(() => '?').join(',');
+            
+            const [paymentPlans, paymentRows]: [any[], any[]] = await Promise.all([
+                 query(`SELECT * FROM payment_plan WHERE creditId IN (${placeholders})`, creditIds),
+                 query(`SELECT * FROM payments_registered WHERE creditId IN (${placeholders})`, creditIds)
+            ]);
 
-        for (const credit of activeCredits) {
-            const creditWithPayments = { 
-                ...credit, 
-                registeredPayments: paymentsByCreditId.get(credit.id) || [],
-                paymentPlan: paymentPlansByCreditId.get(credit.id) || []
-            };
-            const details = calculateCreditStatusDetails(creditWithPayments as CreditDetail, asOfDate);
-            if (details.isDueToday || details.overdueAmount > 0) {
-                metaDeCobro += (details.dueTodayAmount || 0) + details.overdueAmount;
+            const paymentsByCreditId = new Map<string, any[]>();
+            paymentRows.forEach(p => {
+                if (!paymentsByCreditId.has(p.creditId)) paymentsByCreditId.set(p.creditId, []);
+                paymentsByCreditId.get(p.creditId)!.push(p);
+            });
+
+            const paymentPlansByCreditId = new Map<string, any[]>();
+            paymentPlans.forEach(p => {
+                if (!paymentPlansByCreditId.has(p.creditId)) paymentPlansByCreditId.set(p.creditId, []);
+                paymentPlansByCreditId.get(p.creditId)!.push(p);
+            });
+
+            for (const credit of activeCredits) {
+                try {
+                    const creditWithPayments = { 
+                        ...credit, 
+                        registeredPayments: paymentsByCreditId.get(credit.id) || [],
+                        paymentPlan: paymentPlansByCreditId.get(credit.id) || []
+                    };
+                    const details = calculateCreditStatusDetails(creditWithPayments as CreditDetail, asOfDate);
+                    if (details.isDueToday || details.overdueAmount > 0) {
+                        metaDeCobro += (details.dueTodayAmount || 0) + details.overdueAmount;
+                    }
+                } catch (error) {
+                    console.error(`Error calculating details for credit ${credit.id}:`, error);
+                    // Continuar con el siguiente crédito en caso de error
+                    continue;
+                }
             }
         }
-    }
 
+        collections.transactions.forEach(tx => {
+            clientsPaidToday.add(tx.description);
+        });
 
-    collections.transactions.forEach(tx => {
-        clientsPaidToday.add(tx.description);
-    });
-
-    let reloanEligibleCount = 0;
-    for(const c of activeCredits) {
-        const { remainingBalance } = calculateCreditStatusDetails(c, asOfDate);
-        const paidPercentage = c.totalAmount > 0 ? ((c.totalAmount - remainingBalance) / c.totalAmount) * 100 : 0;
-        if (paidPercentage >= 75) {
-            reloanEligibleCount++;
+        let reloanEligibleCount = 0;
+        for(const c of activeCredits) {
+            try {
+                const { remainingBalance } = calculateCreditStatusDetails(c, asOfDate);
+                const paidPercentage = c.totalAmount > 0 ? ((c.totalAmount - remainingBalance) / c.totalAmount) * 100 : 0;
+                if (paidPercentage >= 75) {
+                    reloanEligibleCount++;
+                }
+            } catch (error) {
+                console.error(`Error calculating reloan eligibility for credit ${c.id}:`, error);
+                // Continuar con el siguiente crédito
+                continue;
+            }
         }
+
+        const paidCredits = await getPaidCreditsForGestor(gestorName, 30);
+        const activeClientIds = new Set(activeCredits.map(c => c.clientId));
+        const renewalCount = paidCredits.filter(c => !activeClientIds.has(c.clientId)).length;
+
+        return {
+            recuperacionTotal: collections.totalActivityAmount || 0,
+            metaDeCobro: metaDeCobro || 0,
+            totalClientesCobrados: clientsPaidToday.size || 0,
+            pendingRenewals: (reloanEligibleCount + renewalCount) || 0,
+        };
+    } catch (error) {
+        console.error('Error in getGestorDashboardData:', error);
+        return {
+            recuperacionTotal: 0,
+            metaDeCobro: 0,
+            totalClientesCobrados: 0,
+            pendingRenewals: 0,
+        };
     }
-
-    const paidCredits = await getPaidCreditsForGestor(gestorName, 30);
-    const activeClientIds = new Set(activeCredits.map(c => c.clientId));
-    const renewalCount = paidCredits.filter(c => !activeClientIds.has(c.clientId)).length;
-
-    return {
-        recuperacionTotal: collections.totalActivityAmount,
-        metaDeCobro: metaDeCobro,
-        totalClientesCobrados: clientsPaidToday.size,
-        pendingRenewals: reloanEligibleCount + renewalCount,
-    };
 }
 
 export async function getPaidCreditsForGestor(gestorName: string, daysAgo: number): Promise<CreditDetail[]> {

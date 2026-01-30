@@ -124,16 +124,36 @@ export function GlobalDashboard({ user, initialSucursales, initialReportData }: 
         setIsLoading(true);
         const gestor = gestores.find(g => g.id === gestorId);
         if (!gestor) {
+            console.error(`Gestor with ID ${gestorId} not found in gestores list:`, gestores);
+            toast({ 
+                title: 'Error', 
+                description: 'No se pudo encontrar el gestor seleccionado.', 
+                variant: 'destructive'
+            });
             setIsLoading(false);
             return;
         }
         setGestorDataUser(gestor);
         try {
+            console.log(`Fetching portfolio for gestor: ${gestor.fullName} (ID: ${gestorId})`);
             const { portfolio, dailySummary } = await getPortfolioForGestor(gestorId);
+            console.log(`Portfolio loaded successfully for ${gestor.fullName}:`, { 
+                portfolioCount: portfolio.length, 
+                dailySummary 
+            });
             setGestorPortfolio(portfolio);
             setGestorSummary(dailySummary);
         } catch (error) {
-            toast({ title: 'Error', description: 'No se pudo cargar la cartera del gestor.', variant: 'destructive'});
+            console.error('Error loading gestor portfolio:', error);
+            toast({ 
+                title: 'Error', 
+                description: `No se pudo cargar la cartera del gestor ${gestor.fullName}. ${error instanceof Error ? error.message : 'Error desconocido'}`, 
+                variant: 'destructive'
+            });
+            // Reset gestor data on error
+            setGestorPortfolio(null);
+            setGestorSummary(null);
+            setGestorDataUser(null);
         } finally {
             setIsLoading(false);
         }

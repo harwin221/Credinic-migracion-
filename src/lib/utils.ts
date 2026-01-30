@@ -529,7 +529,7 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
     lastPaymentDate: undefined,
     firstUnpaidDate: undefined,
     conamiCategory: getProvisionCategory(0).category,
-    totalInstallmentAmount: credit.totalInstallmentAmount,
+    totalInstallmentAmount: credit?.totalInstallmentAmount || 0,
     dueTodayAmount: 0
   };
 
@@ -537,128 +537,187 @@ export function calculateCreditStatusDetails(credit: CreditDetail, asOfDateStr?:
     return defaultReturn;
   }
 
-  // Ensure paymentPlan and registeredPayments are arrays
-  const paymentPlan = Array.isArray(credit.paymentPlan) ? credit.paymentPlan : [];
-  const registeredPayments = Array.isArray(credit.registeredPayments) ? credit.registeredPayments : [];
+  try {
+    // Ensure paymentPlan and registeredPayments are arrays
+    const paymentPlan = Array.isArray(credit.paymentPlan) ? credit.paymentPlan : [];
+    const registeredPayments = Array.isArray(credit.registeredPayments) ? credit.registeredPayments : [];
 
-  const sortedValidPayments = [...registeredPayments]
-    .filter(p => p.status !== 'ANULADO' && toISOStringSafe(p.paymentDate))
-    .sort((a, b) => parseISO(toISOStringSafe(b.paymentDate)!).getTime() - parseISO(toISOStringSafe(a.paymentDate)!).getTime());
+    const sortedValidPayments = [...registeredPayments]
+      .filter(p => p && p.status !== 'ANULADO' && toISOStringSafe(p.paymentDate))
+      .sort((a, b) => {
+        try {
+          const dateA = toISOStringSafe(b.paymentDate);
+          const dateB = toISOStringSafe(a.paymentDate);
+          if (!dateA || !dateB) return 0;
+          return parseISO(dateA).getTime() - parseISO(dateB).getTime();
+        } catch (error) {
+          console.error('Error sorting payments:', error);
+          return 0;
+        }
+      });
 
-  if (credit.status === 'Paid') {
-    const lastPayment = sortedValidPayments[0];
-    if (lastPayment?.paymentDate) {
-      defaultReturn.lastPaymentDate = toISOStringSafe(lastPayment.paymentDate)!;
+    if (credit.status === 'Paid') {
+      const lastPayment = sortedValidPayments[0];
+      if (lastPayment?.paymentDate) {
+        defaultReturn.lastPaymentDate = toISOStringSafe(lastPayment.paymentDate)!;
+      }
+      return defaultReturn;
     }
-    return defaultReturn;
-  }
 
-  // Continuar para créditos Activos
-  let asOfDate: Date;
-  if (asOfDateStr) {
-    if (typeof asOfDateStr === 'string') {
-      asOfDate = startOfDay(parseISO(asOfDateStr));
+    // Continuar para créditos Activos
+    let asOfDate: Date;
+    if (asOfDateStr) {
+      if (typeof asOfDateStr === 'string') {
+        asOfDate = startOfDay(parseISO(asOfDateStr));
+      } else {
+        asOfDate = startOfDay(asOfDateStr);
+      }
     } else {
-      asOfDate = startOfDay(asOfDateStr);
+      asOfDate = startOfDay(parseISO(nowInNicaragua()));
     }
-  } else {
-    asOfDate = startOfDay(parseISO(nowInNicaragua()));
-  }
 
-  const totalToPay = credit.totalAmount || 0;
-  const validPayments = registeredPayments.filter(p => p.status !== 'ANULADO');
-  const totalPaid = validPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalToPay = credit.totalAmount || 0;
+    const validPayments = registeredPayments.filter(p => p && p.status !== 'ANULADO');
+    const totalPaid = validPayments.reduce((sum, p) => {
+      const amount = typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0');
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
 
-  let remainingBalance = Math.max(0, totalToPay - totalPaid);
+    let remainingBalance = Math.max(0, totalToPay - totalPaid);
 
-  if (remainingBalance < 0.01) {
+    if (remainingBalance < 0.01) {
+      const lastPayment = sortedValidPayments[0];
+      if (lastPayment?.paymentDate) {
+        defaultReturn.lastPaymentDate = toISOStringSafe(lastPayment.paymentDate)!;
+      }
+      defaultReturn.remainingBalance = 0;
+      return defaultReturn;
+    }
+
+    // --- LÓGICA DE FECHAS REFACTORIZADA PARA EVITAR ERRORES DE ZONA HORARIA ---
+    const asOfDateString = asOfDateStr ? formatDateForUser(asOfDateStr, 'yyyy-MM-dd') : todayInNicaragua();
+
+    const paidToday = validPayments
+      .filter(p => {
+        try {
+          const paymentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
+          return paymentDateString === asOfDateString;
+        } catch (error) {
+          console.error('Error filtering payments for today:', error);
+          return false;
+        }
+      })
+      .reduce((sum, p) => {
+        const amount = typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0');
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+
     const lastPayment = sortedValidPayments[0];
-    if (lastPayment?.paymentDate) {
-      defaultReturn.lastPaymentDate = toISOStringSafe(lastPayment.paymentDate)!;
-    }
-    defaultReturn.remainingBalance = 0;
-    return defaultReturn;
-  }
+    const safeDueDate = toISOStringSafe(credit.dueDate);
+    const isExpired = safeDueDate ? isBefore(parseISO(safeDueDate), asOfDate) : false;
 
-  // --- LÓGICA DE FECHAS REFACTORIZADA PARA EVITAR ERRORES DE ZONA HORARIA ---
-  const asOfDateString = asOfDateStr ? formatDateForUser(asOfDateStr, 'yyyy-MM-dd') : todayInNicaragua();
+    const installmentsDueBeforeToday = paymentPlan
+      .filter(p => {
+        try {
+          const installmentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
+          return installmentDateString && installmentDateString < asOfDateString;
+        } catch (error) {
+          console.error('Error filtering installments:', error);
+          return false;
+        }
+      });
 
-  const paidToday = validPayments
-    .filter(p => {
-      const paymentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
-      return paymentDateString === asOfDateString;
-    })
-    .reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0')), 0);
+    const amountDueBeforeToday = installmentsDueBeforeToday.reduce((sum, p) => {
+      const amount = typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0');
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
 
-  const lastPayment = sortedValidPayments[0];
-  const safeDueDate = toISOStringSafe(credit.dueDate);
-  const isExpired = safeDueDate ? isBefore(parseISO(safeDueDate), asOfDate) : false;
+    const totalPaidBeforeToday = validPayments
+      .filter(p => {
+        try {
+          const paymentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
+          return paymentDateString && paymentDateString < asOfDateString;
+        } catch (error) {
+          console.error('Error filtering payments before today:', error);
+          return false;
+        }
+      })
+      .reduce((sum, p) => {
+        const amount = typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0');
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
 
-  const installmentsDueBeforeToday = paymentPlan
-    .filter(p => {
-      const installmentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
-      return installmentDateString && installmentDateString < asOfDateString;
+    const surplusFromPast = Math.max(0, totalPaidBeforeToday - amountDueBeforeToday);
+
+    let overdueAmount = Math.max(0, amountDueBeforeToday - totalPaidBeforeToday);
+
+    const installmentDueToday = paymentPlan.find(p => {
+      try {
+        const installmentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
+        return installmentDateString === asOfDateString;
+      } catch (error) {
+        console.error('Error finding installment due today:', error);
+        return false;
+      }
     });
+    
+    const isDueToday = !!installmentDueToday;
+    const originalDueTodayAmount = isDueToday ? (typeof installmentDueToday?.amount === 'number' ? installmentDueToday.amount : parseFloat(installmentDueToday?.amount || '0')) : 0;
 
-  const amountDueBeforeToday = installmentsDueBeforeToday.reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0')), 0);
+    // La cuota del día se ajusta con el excedente de pagos anteriores.
+    const dueTodayAmount = Math.max(0, originalDueTodayAmount - surplusFromPast);
 
-  const totalPaidBeforeToday = validPayments
-    .filter(p => {
-      const paymentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
-      return paymentDateString && paymentDateString < asOfDateString;
-    })
-    .reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0')), 0);
+    let lateDays = 0;
+    let firstUnpaidDate: string | undefined = undefined;
 
-  const surplusFromPast = Math.max(0, totalPaidBeforeToday - amountDueBeforeToday);
+    if (overdueAmount > 0.01) {
+      let cumulativeDue = 0;
+      const firstUnpaidInstallment = paymentPlan.find(p => {
+        try {
+          const safePDate = toISOStringSafe(p.paymentDate);
+          if (!safePDate || isAfter(startOfDay(parseISO(safePDate)), asOfDate)) return false;
+          const amount = typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0');
+          cumulativeDue += isNaN(amount) ? 0 : amount;
+          return totalPaid < cumulativeDue - 0.01;
+        } catch (error) {
+          console.error('Error finding first unpaid installment:', error);
+          return false;
+        }
+      });
 
-  let overdueAmount = Math.max(0, amountDueBeforeToday - totalPaidBeforeToday);
-
-  const installmentDueToday = paymentPlan.find(p => {
-    const installmentDateString = p.paymentDate ? p.paymentDate.split('T')[0] : '';
-    return installmentDateString === asOfDateString;
-  });
-  const isDueToday = !!installmentDueToday;
-  const originalDueTodayAmount = isDueToday ? (typeof installmentDueToday?.amount === 'number' ? installmentDueToday.amount : parseFloat(installmentDueToday?.amount || '0')) : 0;
-
-  // La cuota del día se ajusta con el excedente de pagos anteriores.
-  const dueTodayAmount = Math.max(0, originalDueTodayAmount - surplusFromPast);
-
-  let lateDays = 0;
-  let firstUnpaidDate: string | undefined = undefined;
-
-  if (overdueAmount > 0.01) {
-    let cumulativeDue = 0;
-    const firstUnpaidInstallment = paymentPlan.find(p => {
-      const safePDate = toISOStringSafe(p.paymentDate);
-      if (!safePDate || isAfter(startOfDay(parseISO(safePDate)), asOfDate)) return false;
-      cumulativeDue += (typeof p.amount === 'number' ? p.amount : parseFloat(p.amount || '0'));
-      return totalPaid < cumulativeDue - 0.01;
-    });
-
-    if (firstUnpaidInstallment?.paymentDate) {
-      firstUnpaidDate = toISOStringSafe(firstUnpaidInstallment.paymentDate)!;
-      lateDays = differenceInDays(asOfDate, startOfDay(parseISO(firstUnpaidDate)));
+      if (firstUnpaidInstallment?.paymentDate) {
+        firstUnpaidDate = toISOStringSafe(firstUnpaidInstallment.paymentDate)!;
+        if (firstUnpaidDate) {
+          lateDays = differenceInDays(asOfDate, startOfDay(parseISO(firstUnpaidDate)));
+        }
+      }
     }
+
+    const currentLateFee = 0; // Se establece en 0 según solicitud del usuario
+    const { category: conamiCategory } = getProvisionCategory(lateDays);
+    const lastPaymentDate = lastPayment?.paymentDate ? toISOStringSafe(lastPayment.paymentDate)! : undefined;
+
+    return {
+      remainingBalance,
+      overdueAmount,
+      lateDays: Math.max(0, lateDays),
+      currentLateFee,
+      lastPaymentDate,
+      isExpired,
+      isDueToday,
+      paidToday,
+      firstUnpaidDate,
+      conamiCategory,
+      totalInstallmentAmount: credit.totalInstallmentAmount || 0,
+      dueTodayAmount,
+    };
+  } catch (error) {
+    console.error('Error in calculateCreditStatusDetails:', error, 'Credit ID:', credit?.id);
+    return {
+      ...defaultReturn,
+      remainingBalance: credit?.totalAmount || 0
+    };
   }
-
-  const currentLateFee = 0; // Se establece en 0 según solicitud del usuario
-  const { category: conamiCategory } = getProvisionCategory(lateDays);
-  const lastPaymentDate = lastPayment?.paymentDate ? toISOStringSafe(lastPayment.paymentDate)! : undefined;
-
-  return {
-    remainingBalance,
-    overdueAmount,
-    lateDays: Math.max(0, lateDays),
-    currentLateFee,
-    lastPaymentDate,
-    isExpired,
-    isDueToday,
-    paidToday,
-    firstUnpaidDate,
-    conamiCategory,
-    totalInstallmentAmount: credit.totalInstallmentAmount,
-    dueTodayAmount,
-  };
 }
 
 
