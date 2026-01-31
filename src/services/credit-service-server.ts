@@ -596,16 +596,21 @@ export async function revalidateActiveCreditsStatus(): Promise<{ success: boolea
             });
 
             if (scheduleData) {
-                // Actualizar la fecha de vencimiento en el registro principal del crédito
+                // Actualizar las fechas en el registro principal del crédito
+                const firstPaymentDate = scheduleData.schedule[0].paymentDate;
                 const newDueDate = scheduleData.schedule[scheduleData.schedule.length - 1].paymentDate;
-                // Agregar hora del mediodía para evitar problemas de zona horaria
-                await query('UPDATE credits SET dueDate = ? WHERE id = ?', [`${newDueDate} 12:00:00`, credit.id]);
+                
+                await query('UPDATE credits SET firstPaymentDate = ?, dueDate = ? WHERE id = ?', [
+                    `${firstPaymentDate.split('T')[0]} 12:00:00`,
+                    `${newDueDate.split('T')[0]} 12:00:00`, 
+                    credit.id
+                ]);
 
                 // Borrar y volver a insertar el plan de pagos
                 await query('DELETE FROM payment_plan WHERE creditId = ?', [credit.id]);
                 for (const p of scheduleData.schedule) {
                     // Usar mediodía (12:00:00) para evitar problemas de zona horaria con fechas
-                    await query('INSERT INTO payment_plan (creditId, paymentNumber, paymentDate, amount, principal, interest, balance) VALUES (?, ?, ?, ?, ?, ?, ?)', [credit.id, p.paymentNumber, `${p.paymentDate} 12:00:00`, p.amount, p.principal, p.interest, p.balance]);
+                    await query('INSERT INTO payment_plan (creditId, paymentNumber, paymentDate, amount, principal, interest, balance) VALUES (?, ?, ?, ?, ?, ?, ?)', [credit.id, p.paymentNumber, `${p.paymentDate.split('T')[0]} 12:00:00`, p.amount, p.principal, p.interest, p.balance]);
                 }
                 updatedCount++;
             }

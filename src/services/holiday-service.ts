@@ -75,6 +75,16 @@ export const ensurePaymentPlanExists = async (creditId: string, actor: User): Pr
         });
 
         if (scheduleData && scheduleData.schedule) {
+            // Actualizar las fechas en el registro principal del crédito
+            const firstPaymentDate = scheduleData.schedule[0].paymentDate;
+            const newDueDate = scheduleData.schedule[scheduleData.schedule.length - 1].paymentDate;
+            
+            await query('UPDATE credits SET firstPaymentDate = ?, dueDate = ? WHERE id = ?', [
+                `${firstPaymentDate.split('T')[0]} 12:00:00`,
+                `${newDueDate.split('T')[0]} 12:00:00`, 
+                credit.id
+            ]);
+
             // Insertar el plan de pagos
             for (const payment of scheduleData.schedule) {
                 await query(`
@@ -133,9 +143,15 @@ export const synchronizeAllPaymentPlans = async (actor: User): Promise<{ success
                 });
 
                 if (scheduleData && scheduleData.schedule) {
-                    // Actualizar la fecha de vencimiento en el registro principal del crédito
+                    // Actualizar las fechas en el registro principal del crédito
+                    const firstPaymentDate = scheduleData.schedule[0].paymentDate;
                     const newDueDate = scheduleData.schedule[scheduleData.schedule.length - 1].paymentDate;
-                    await query('UPDATE credits SET dueDate = ? WHERE id = ?', [`${newDueDate.split('T')[0]} 12:00:00`, credit.id]);
+                    
+                    await query('UPDATE credits SET firstPaymentDate = ?, dueDate = ? WHERE id = ?', [
+                        `${firstPaymentDate.split('T')[0]} 12:00:00`,
+                        `${newDueDate.split('T')[0]} 12:00:00`, 
+                        credit.id
+                    ]);
 
                     // Eliminar el plan de pagos anterior
                     await query('DELETE FROM payment_plan WHERE creditId = ?', [credit.id]);
