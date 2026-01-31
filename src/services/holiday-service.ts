@@ -7,23 +7,25 @@ import type { Holiday, AppUser as User } from '@/lib/types';
 import { format } from 'date-fns';
 import { createLog } from './audit-log-service';
 import { revalidatePath } from 'next/cache';
-import { formatDateForUser, isoToMySQLDateTimeNoon } from '@/lib/date-utils';
 
 export const getHolidays = async (): Promise<Holiday[]> => {
     const rows: any = await query('SELECT * FROM holidays ORDER BY date ASC');
-    // Asegurarse de que la fecha se devuelve en formato 'YYYY-MM-DD' para consistencia
+    // Extraer solo la fecha (YYYY-MM-DD) sin conversión de zona horaria
     return rows.map((row: any) => ({
         ...row,
-        date: formatDateForUser(row.date, 'yyyy-MM-dd')
+        date: row.date ? format(new Date(row.date), 'yyyy-MM-dd') : row.date
     }));
 };
 
 export const addHoliday = async (holidayData: Omit<Holiday, 'id'>, actor: User): Promise<{ success: boolean, id?: string, error?: string }> => {
     try {
         const newId = generateId('hol');
-        const formattedDate = isoToMySQLDateTimeNoon(holidayData.date);
+        // Para días feriados, usar la fecha exacta sin conversión de zona horaria
+        const dateOnly = holidayData.date.split('T')[0]; // Extraer solo YYYY-MM-DD
+        const formattedDate = `${dateOnly} 12:00:00`; // Agregar mediodía sin conversión
+        
         await query('INSERT INTO holidays (id, name, date) VALUES (?, ?, ?)', [newId, holidayData.name, formattedDate]);
-        await createLog(actor, 'settings:holiday_add', `Agregó el feriado ${holidayData.name} para la fecha ${formattedDate}.`, { targetId: newId });
+        await createLog(actor, 'settings:holiday_add', `Agregó el feriado ${holidayData.name} para la fecha ${dateOnly}.`, { targetId: newId });
         revalidatePath('/settings/holidays');
         return { success: true, id: newId };
     } catch (error: any) {
