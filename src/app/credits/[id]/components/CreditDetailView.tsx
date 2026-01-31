@@ -251,6 +251,52 @@ export function CreditDetailView({ credit: initialCredit, onPaymentSuccess }: Cr
         }
     };
 
+    const handleDeletePayment = async (payment: RegisteredPayment) => {
+        if (!user || user.role !== 'ADMINISTRADOR') {
+            toast({ title: 'Permiso Denegado', description: 'Solo los administradores pueden eliminar pagos.', variant: 'destructive' });
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE este pago?\n\n` +
+            `Monto: ${formatCurrency(payment.amount)}\n` +
+            `Fecha: ${formatDate(payment.paymentDate)}\n` +
+            `Gestor: ${payment.managedBy}\n\n` +
+            `Esta acción NO se puede deshacer y eliminará completamente el registro.`
+        );
+
+        if (!confirmed) return;
+
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/credits/${credit.id}/payments/${payment.id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                toast({ 
+                    title: 'Pago Eliminado', 
+                    description: 'El pago ha sido eliminado permanentemente del sistema.' 
+                });
+                router.refresh();
+                onPaymentSuccess?.();
+            } else {
+                throw new Error(result.error || 'Error eliminando el pago');
+            }
+        } catch (error) {
+            toast({ 
+                title: 'Error', 
+                description: error instanceof Error ? error.message : 'No se pudo eliminar el pago.', 
+                variant: 'destructive' 
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     const fullAddress = [
         credit.clientDetails?.department,
@@ -523,6 +569,11 @@ export function CreditDetailView({ credit: initialCredit, onPaymentSuccess }: Cr
                                                             {canVoidPayment && p.status === 'VALIDO' && (
                                                                 <DropdownMenuItem onClick={() => handleOpenVoidModal(p)} className="text-destructive focus:bg-destructive focus:text-destructive-foreground">
                                                                     <Trash2 className="mr-2 h-4 w-4" /> Anular Pago
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {canVoidPayment && p.status === 'VALIDO' && (
+                                                                <DropdownMenuItem onClick={() => handleDeletePayment(p)} className="text-red-600 focus:bg-red-100 focus:text-red-900">
+                                                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar Pago
                                                                 </DropdownMenuItem>
                                                             )}
                                                         </DropdownMenuContent>

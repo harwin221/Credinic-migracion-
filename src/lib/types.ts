@@ -25,7 +25,7 @@ export type Permission =
   // Créditos
   | 'credit:create' | 'credit:edit' | 'credit:delete' | 'credit:view:all' | 'credit:pay'
   // Aprobaciones y Anulaciones
-  | 'approval:view' | 'approval:level2' | 'disbursement:view' | 'payment:void_request' | 'void:approve'
+  | 'approval:view' | 'approval:level2' | 'disbursement:view' | 'payment:void_request' | 'payment:void_approve' | 'void:approve'
   // Cierres y Transferencias
   | 'closure:view' | 'closure:create' 
   // Calculadora

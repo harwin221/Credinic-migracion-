@@ -278,56 +278,10 @@ export function generatePaymentSchedule(data: PaymentScheduleArgs): CalculatedPa
 
     // 2. Avanza la fecha TEÓRICA para la siguiente iteración
     if (paymentFrequency === 'Quincenal') {
-      // Lógica Semimensual (Quincenal) basada en anclajes para evitar deriva
-      const startDay = initialDate.getDate();
-      const isStartSecondHalf = startDay > 15;
-
-      // Definir los dos días de pago base
-      // Si inicia el 5 -> días 5 y 20
-      // Si inicia el 20 -> días 5 y 20
-      const day1 = isStartSecondHalf ? startDay - 15 : startDay;
-      const day2 = isStartSecondHalf ? startDay : startDay + 15;
-
-      // Calcular el índice lógico de la SIGUIENTE cuota (i es el índice actual 1-based, queremos el siguiente i+1)
-      // Pero aquí estamos actualizando 'theoreticalDate' para la *siguiente* iteración del bucle.
-      // En la siguiente iteración, 'i' será i+1.
-      // La lógica dentro del bucle usa 'theoreticalDate' directamente.
-      // Así que calculamos la fecha para la cuota i+1.
-
-      const nextPaymentIndex = i; // 0-based index for the next item (which is i in 1-based)
-      // Ajuste: 'i' aquí es el número de pago que ACABA de procesarse (1, 2, 3...).
-      // Queremos calcular la fecha para el pago i+1.
-
-      // Offset de meses desde la fecha inicial
-      // Si arrancamos en la 2da quincena (isStartSecondHalf=true), el pago 1 es la 2da del mes 0.
-      // El pago 2 (i=1 para el próximo loop) será la 1ra del mes 1.
-      // El pago 3 (i=2 para el próximo loop) será la 2da del mes 1.
-
-      const baseIndex = nextPaymentIndex + (isStartSecondHalf ? 1 : 0);
-      const monthOffset = Math.floor(baseIndex / 2);
-      const isTargetSecondHalf = (baseIndex % 2) === 1;
-
-      const targetYear = initialDate.getFullYear();
-      const targetMonthIndex = initialDate.getMonth() + monthOffset;
-      const targetDay = isTargetSecondHalf ? day2 : day1;
-
-      // Crear fecha y manejar desbordamiento de mes (ej: Feb 30 -> Feb 28)
-      theoreticalDate = new Date(targetYear, targetMonthIndex, targetDay);
-
-      // Verificar si hubo desbordamiento (ej: pedimos día 30 pero cayó en el mes siguiente)
-      // El objeto Date ajusta automáticamente 2023-02-30 a 2023-03-02.
-      // Queremos detectar esto y retroceder al último día del mes correcto.
-      const expectedMonth = targetMonthIndex % 12; // 0-11
-      const actualMonth = theoreticalDate.getMonth();
-
-      // Ajuste para años negativos o desbordamientos grandes (aunque monthOffset es positivo)
-      const normalizedExpectedMonth = (expectedMonth + 12) % 12;
-
-      if (actualMonth !== normalizedExpectedMonth) {
-        // Hubo desbordamiento, fijar al último día del mes anterior (el mes objetivo)
-        theoreticalDate = new Date(targetYear, targetMonthIndex + 1, 0);
-      }
-
+      // Lógica Quincenal SIMPLE: Agregar 15 días exactos
+      // Si el cliente pide primera cuota el 2, la siguiente es el 17
+      // Si el 17 cae domingo, se mueve al 18 (lunes), pero la siguiente sigue siendo 15 días después del 17
+      theoreticalDate = addDays(theoreticalDate, 15);
     } else {
       // Lógica para otras frecuencias
       switch (paymentFrequency) {

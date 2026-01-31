@@ -51,6 +51,12 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'approval:view',
   },
   {
+    title: 'Anulaciones de Pagos',
+    href: '/requests/payment-voids',
+    icon: AlertTriangle,
+    permission: 'payment:void_approve',
+  },
+  {
     title: 'Desembolsos',
     href: '/disbursements',
     icon: HandCoins,
@@ -201,7 +207,7 @@ export const NAV_ITEMS_FOOTER: NavItem[] = [
 export const rolePermissions: Record<UserRole, Permission[]> = {
   ADMINISTRADOR: [
     'dashboard:view', 'client:view', 'client:create', 'client:edit', 'client:delete',
-    'credit:view:all', 'credit:create', 'credit:edit', 'credit:delete', 'credit:pay', 'payment:void_request', 'void:approve',
+    'credit:view:all', 'credit:create', 'credit:edit', 'credit:delete', 'credit:pay', 'payment:void_request', 'payment:void_approve', 'void:approve',
     'closure:view', 'closure:create',
     'calculator:use', 'reports:view', 'reports:view:saldos', 'reports:view:operativos', 'reports:view:financieros',
     'audit:view', 'settings:view', 'settings:seed_data',
