@@ -151,6 +151,35 @@
     background-color: #f3f4f6 !important;
   }
 
+  /* Column width adjustments for Saldos Cartera report */
+  .report-table-condensed .col-codigo {
+    width: 8% !important;
+  }
+  
+  .report-table-condensed .col-cliente {
+    width: 35% !important;
+  }
+  
+  .report-table-condensed .col-credito {
+    width: 10% !important;
+  }
+  
+  .report-table-condensed .col-cuota {
+    width: 12% !important;
+  }
+  
+  .report-table-condensed .col-sal-capital {
+    width: 12% !important;
+  }
+  
+  .report-table-condensed .col-sal-intereses {
+    width: 12% !important;
+  }
+  
+  .report-table-condensed .col-saldo-total {
+    width: 11% !important;
+  }
+
   @media print {
     body, html {
       background: white !important;

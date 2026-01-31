@@ -129,34 +129,34 @@ function SaldosCarteraReportContent() {
                     <Table className="report-table-condensed">
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Código</TableHead>
-                          <TableHead>Nombre del Cliente</TableHead>
-                          <TableHead>Crédito</TableHead>
-                          <TableHead className="text-right">Cuota</TableHead>
-                          <TableHead className="text-right">Sal Capital</TableHead>
-                          <TableHead className="text-right">Sal Intereses</TableHead>
-                          <TableHead className="text-right">Saldo Total</TableHead>
+                          <TableHead className="col-codigo">Código</TableHead>
+                          <TableHead className="col-cliente">Nombre del Cliente</TableHead>
+                          <TableHead className="col-credito">Crédito</TableHead>
+                          <TableHead className="col-cuota text-right">Cuota</TableHead>
+                          <TableHead className="col-sal-capital text-right">Sal Capital</TableHead>
+                          <TableHead className="col-sal-intereses text-right">Sal Intereses</TableHead>
+                          <TableHead className="col-saldo-total text-right">Saldo Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {gestorGroup.credits.map((item: SaldosCarteraItem) => (
                           <TableRow key={item.creditId}>
-                            <TableCell>{item.clientNumber}</TableCell>
-                            <TableCell>{item.clientName}</TableCell>
-                            <TableCell>{item.creditNumber}</TableCell>
-                            <TableCell className="text-right">{formatCurrencySymbol(item.installmentAmount)}</TableCell>
-                            <TableCell className="text-right">{formatCurrencySymbol(item.remainingPrincipal)}</TableCell>
-                            <TableCell className="text-right">{formatCurrencySymbol(item.remainingInterest)}</TableCell>
-                            <TableCell className="text-right font-bold">{formatCurrencySymbol(item.remainingBalance)}</TableCell>
+                            <TableCell className="col-codigo">{item.clientNumber}</TableCell>
+                            <TableCell className="col-cliente">{item.clientName}</TableCell>
+                            <TableCell className="col-credito">{item.creditNumber}</TableCell>
+                            <TableCell className="col-cuota text-right">{formatCurrencySymbol(item.installmentAmount)}</TableCell>
+                            <TableCell className="col-sal-capital text-right">{formatCurrencySymbol(item.remainingPrincipal)}</TableCell>
+                            <TableCell className="col-sal-intereses text-right">{formatCurrencySymbol(item.remainingInterest)}</TableCell>
+                            <TableCell className="col-saldo-total text-right font-bold">{formatCurrencySymbol(item.remainingBalance)}</TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="font-bold bg-gray-100">
-                          <TableCell colSpan={2}>TOTAL GEST: &gt;&gt;</TableCell>
-                          <TableCell>Clientes: {gestorGroup.credits.length}</TableCell>
-                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalCuota)}</TableCell>
-                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldoCapital)}</TableCell>
-                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldoInteres)}</TableCell>
-                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldo)}</TableCell>
+                          <TableCell className="col-codigo" colSpan={2}>TOTAL GEST: &gt;&gt;</TableCell>
+                          <TableCell className="col-credito">Clientes: {gestorGroup.credits.length}</TableCell>
+                          <TableCell className="col-cuota text-right">{formatCurrencySymbol(gestorGroup.totalCuota)}</TableCell>
+                          <TableCell className="col-sal-capital text-right">{formatCurrencySymbol(gestorGroup.totalSaldoCapital)}</TableCell>
+                          <TableCell className="col-sal-intereses text-right">{formatCurrencySymbol(gestorGroup.totalSaldoInteres)}</TableCell>
+                          <TableCell className="col-saldo-total text-right">{formatCurrencySymbol(gestorGroup.totalSaldo)}</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
@@ -176,13 +176,13 @@ function SaldosCarteraReportContent() {
               <Table className="report-table-condensed">
                 <TableFooter>
                   <TableRow className="font-bold text-sm bg-blue-100 hover:bg-blue-100">
-                    <TableCell>TOTAL GENERAL</TableCell>
-                    <TableCell>Clientes: {grandTotalClients}</TableCell>
-                    <TableCell>Créditos: {grandTotalClients}</TableCell>
-                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalCuota)}</TableCell>
-                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldoCapital)}</TableCell>
-                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldoInteres)}</TableCell>
-                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldo)}</TableCell>
+                    <TableCell className="col-codigo">TOTAL GENERAL</TableCell>
+                    <TableCell className="col-cliente">Clientes: {grandTotalClients}</TableCell>
+                    <TableCell className="col-credito">Créditos: {grandTotalClients}</TableCell>
+                    <TableCell className="col-cuota text-right">{formatCurrencySymbol(grandTotalCuota)}</TableCell>
+                    <TableCell className="col-sal-capital text-right">{formatCurrencySymbol(grandTotalSaldoCapital)}</TableCell>
+                    <TableCell className="col-sal-intereses text-right">{formatCurrencySymbol(grandTotalSaldoInteres)}</TableCell>
+                    <TableCell className="col-saldo-total text-right">{formatCurrencySymbol(grandTotalSaldo)}</TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
