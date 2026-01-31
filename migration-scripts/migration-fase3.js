@@ -73,9 +73,13 @@ async function migratePaymentsBatch(oldDbConnection, newDbConnection, creditMap,
         const newId = generatePaymentId();
         const managedByNewId = userClientMap[payment.created_used_id] || userClientMap[1]; // Admin por defecto
 
+        // Mantener la hora exacta del pago (NO convertir a mediodía)
+        // Los pagos necesitan la hora precisa de cuando se realizaron
+        const paymentDateTime = payment.fecha_abono; // Mantener fecha y hora original
+
         const sql = `INSERT INTO payments_registered (id, legacyId, creditId, paymentDate, amount, managedBy, status) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const values = [
-            newId, payment.id, newCreditId, payment.fecha_abono, 
+            newId, payment.id, newCreditId, paymentDateTime, 
             payment.total_efectivo, managedByNewId,
             PAYMENT_STATUS_MAP[payment.estado] || 'valido'
         ];

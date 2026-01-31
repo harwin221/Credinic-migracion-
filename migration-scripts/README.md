@@ -69,17 +69,32 @@ node verificar-migracion.js
 - ✅ **Corrige decimales innecesarios**:
   - `3.00` → `3` (elimina .00)
   - `2.50` → `2.50` (preserva decimales reales)
+- ✅ **FECHAS CORREGIDAS**: Fechas de día completo (primera cuota, vencimiento, entrega) se guardan con `12:00:00` para evitar problemas de zona horaria
 - ✅ Asigna gestores correctamente
 - ✅ Hereda sucursal del cliente
 - ✅ Guarda mapa de créditos para Fase 3
 
 ### FASE 3: PAGOS
-- ✅ Migra pagos en **lotes de 100** para evitar timeouts
+- ✅ Migra pagos en **lotes de 50** para evitar timeouts
+- ✅ **FECHAS CON HORA EXACTA**: Los pagos mantienen su fecha y hora original precisa para mostrar en historial
 - ✅ **Reconexión automática** entre lotes
 - ✅ IDs bonitos: `pay_001`, `pay_002`, etc.
 - ✅ Manejo robusto de errores
 
-## 🔍 VERIFICACIÓN
+## � MANEJO DE FECHAS (IMPORTANTE)
+
+### **Fechas de "Día Completo" → `12:00:00`**
+- `firstPaymentDate` (fecha primera cuota)
+- `dueDate` (fecha vencimiento)
+- `deliveryDate` (fecha entrega)
+- **Razón**: Evita problemas de conversión de zona horaria al mostrar fechas
+
+### **Fechas con Hora Exacta → Hora Original**
+- `paymentDate` en pagos (fecha y hora exacta del abono)
+- `created_at`, `updated_at` (timestamps de auditoría)
+- **Razón**: Necesario para mostrar hora precisa en historial de pagos
+
+## �🔍 VERIFICACINÓ
 
 El script `verificar-migracion.js` muestra:
 - Conteo de registros migrados
@@ -99,10 +114,11 @@ El script `verificar-migracion.js` muestra:
 
 Después de la migración completa:
 - **214 clientes** con IDs bonitos y sucursales asignadas
-- **435 créditos** con decimales corregidos
-- **Todos los pagos** migrados exitosamente
+- **435 créditos** con decimales corregidos y fechas con zona horaria correcta
+- **3,112 pagos** con fechas y horas exactas preservadas
 - **Contadores** reseteados correctamente
 - **Dashboard** funcionando con lógica corregida
+- **Planes de pago** sincronizados correctamente
 
 ## 🆘 SOLUCIÓN DE PROBLEMAS
 

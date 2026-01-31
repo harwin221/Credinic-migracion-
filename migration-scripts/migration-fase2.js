@@ -93,15 +93,25 @@ async function migrateCredits(oldDbConnection, newDbConnection, userClientMap) {
             ? parseInt(credit.plazo_pago) 
             : (credit.plazo_pago || 0);
 
+        // Función para convertir fechas de "día completo" a mediodía (12:00:00)
+        const convertToNoonDate = (dateValue) => {
+            if (!dateValue) return null;
+            const date = new Date(dateValue);
+            if (isNaN(date.getTime())) return null;
+            // Extraer solo la fecha (YYYY-MM-DD) y agregar mediodía
+            const dateOnly = date.toISOString().split('T')[0];
+            return `${dateOnly} 12:00:00`;
+        };
+
         const sql = `INSERT INTO credits (id, legacyId, creditNumber, clientId, clientName, status, applicationDate, approvalDate, amount, principalAmount, interestRate, termMonths, paymentFrequency, currencyType, totalAmount, totalInterest, totalInstallmentAmount, firstPaymentDate, deliveryDate, collectionsManager, branch, branchName, createdAt, updatedAt) VALUES (?, ?, ?, ?, (SELECT name FROM clients WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
         const values = [
             newId, credit.id, creditNumber, newClientId, newClientId, 
-            CREDIT_STATUS_MAP[credit.estado] || 'Active', credit.fecha_desembolso || new Date(),
-            credit.fecha_desembolso || null, credit.monto_prestamo || 0, credit.monto_prestamo || 0,
+            CREDIT_STATUS_MAP[credit.estado] || 'Active', convertToNoonDate(credit.fecha_desembolso) || convertToNoonDate(new Date()),
+            convertToNoonDate(credit.fecha_desembolso), credit.monto_prestamo || 0, credit.monto_prestamo || 0,
             interestRate, termMonths, PAYMENT_FREQ_MAP[credit.forma_pago_tipo] || 'Diario',
             CURRENCY_MAP[credit.moneda_prestamo] || 'Cordobas', credit.monto_financiado || 0,
-            credit.interes_total_pagar || 0, credit.monto_cuota || 0, credit.fecha_primer_pago || null,
-            credit.fecha_desembolso || null, gestorName, sucursalId, sucursalName,
+            credit.interes_total_pagar || 0, credit.monto_cuota || 0, convertToNoonDate(credit.fecha_primer_pago),
+            convertToNoonDate(credit.fecha_desembolso), gestorName, sucursalId, sucursalName,
             credit.created_at, credit.updated_at
         ];
 
