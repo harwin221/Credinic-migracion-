@@ -1,5 +1,5 @@
 // MIGRACIÓN FASE 1: USUARIOS Y CLIENTES
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: '.env' });
 const mysql = require('mysql2/promise');
 
 // --- CONFIGURACIÓN ---
@@ -222,6 +222,7 @@ async function runFase1() {
 
     } catch (error) {
         console.error('\n❌ ERROR EN FASE 1:', error.message);
+        console.error('📋 Detalles del error:', error);
         if (newDbConnection) await newDbConnection.rollback();
     } finally {
         if (oldDbConnection) await oldDbConnection.end();

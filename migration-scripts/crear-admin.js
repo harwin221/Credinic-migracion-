@@ -1,5 +1,5 @@
 // CREAR/RESETEAR USUARIO ADMINISTRADOR
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: '.env' });
 const mysql = require('mysql2/promise');
 
 const newDbConfig = {
