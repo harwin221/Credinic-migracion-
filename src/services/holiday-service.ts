@@ -99,6 +99,7 @@ export const synchronizeAllPaymentPlans = async (actor: User): Promise<{ success
         }
 
         await createLog(actor, 'settings:holiday_sync', `Sincronizó ${updatedCount} planes de pago con los días feriados actuales.`, { 
+            targetId: 'system',
             details: { updatedCredits: updatedCount, totalCredits: activeCredits.length }
         });
 
