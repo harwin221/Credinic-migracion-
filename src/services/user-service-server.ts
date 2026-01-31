@@ -114,7 +114,7 @@ export async function updateUserPassword(userId: string, newPassword: string): P
   }, 'updateUserPassword');
 }
 
-export async function updateUserService(userId: string, userData: Partial<AppUser>): Promise<{ success: boolean; error?: string }> {
+export async function updateUserService(userId: string, userData: Partial<AppUser & { password?: string }>): Promise<{ success: boolean; error?: string }> {
     try {
         const updateFields: string[] = [];
         const values: any[] = [];
@@ -130,8 +130,17 @@ export async function updateUserService(userId: string, userData: Partial<AppUse
             active: 'active'
         };
 
+        // Handle password separately if provided
+        if (userData.password && userData.password.trim().length > 0) {
+            const hashedPassword = await bcrypt.hash(userData.password, 10);
+            updateFields.push('hashed_password = ?');
+            values.push(hashedPassword);
+            updateFields.push('mustChangePassword = ?');
+            values.push(false);
+        }
+
         for (const key in userData) {
-            if (Object.prototype.hasOwnProperty.call(userData, key)) {
+            if (Object.prototype.hasOwnProperty.call(userData, key) && key !== 'password') {
                 const typedKey = key as keyof AppUser;
                 const column = columnMap[typedKey];
                 if (column) {

@@ -32,7 +32,7 @@ export async function createUser(
 
 export async function updateUserAction(
   userId: string,
-  newData: Partial<User>,
+  newData: Partial<User & { password?: string }>,
   actor: User
 ): Promise<{ success: boolean; error?: string }> {
     const oldData = await getUser(userId);

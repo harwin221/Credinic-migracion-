@@ -73,6 +73,13 @@ export function UserForm({ onFinished, initialData }: UserFormProps) {
                 message: "La contraseña debe tener al menos 6 caracteres.",
             });
         }
+        if (initialData && data.password && data.password.length > 0 && data.password.length < 6) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["password"],
+                message: "La nueva contraseña debe tener al menos 6 caracteres.",
+            });
+        }
     });
   }, [initialData]);
 
@@ -158,7 +165,7 @@ export function UserForm({ onFinished, initialData }: UserFormProps) {
       let result: { success: boolean; error?: string; };
 
       if (initialData) {
-        result = await updateUserAction(initialData.id, {
+        const updateData: any = {
             fullName: values.displayName.toUpperCase(),
             username: values.username,
             phone: values.phone || undefined,
@@ -166,7 +173,14 @@ export function UserForm({ onFinished, initialData }: UserFormProps) {
             sucursal: values.branch,
             sucursalName: branches.find(b => b.value === values.branch)?.label,
             active: values.status,
-        }, currentUser);
+        };
+        
+        // Solo incluir contraseña si se proporcionó una nueva
+        if (values.password && values.password.trim().length > 0) {
+            updateData.password = values.password;
+        }
+        
+        result = await updateUserAction(initialData.id, updateData, currentUser);
       } else {
         if (!values.password) {
             toast({ title: "Error", description: "La contraseña es requerida.", variant: "destructive" });
@@ -276,6 +290,37 @@ export function UserForm({ onFinished, initialData }: UserFormProps) {
                   </FormControl>
                   <FormDescription>
                     La contraseña debe tener al menos 6 caracteres.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+          {initialData && (
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nueva Contraseña (Opcional)</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="Dejar vacío para mantener la actual"
+                        {...field} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Solo completar si desea cambiar la contraseña actual.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
