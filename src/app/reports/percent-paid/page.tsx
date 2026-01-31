@@ -13,8 +13,8 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
-const formatCurrency = (amount: number) => `C$${amount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const formatPercentage = (rate: number) => `${rate.toFixed(2)}%`;
+const formatCurrency = (amount: number) => `C$${(Number(amount) || 0).toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatPercentage = (rate: number) => `${(Number(rate) || 0).toFixed(2)}%`;
 
 function PercentPaidReportContent() {
   const searchParams = useSearchParams();
@@ -26,16 +26,27 @@ function PercentPaidReportContent() {
   React.useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      const filters = {
-        sucursales: searchParams.getAll('sucursal'),
-        users: searchParams.getAll('user'),
-      };
-      const data = await generatePercentPaidReport(filters);
-      setReportData(data);
-      setIsLoading(false);
+      try {
+        const filters = {
+          sucursales: searchParams.getAll('sucursal'),
+          users: searchParams.getAll('user'),
+        };
+        const data = await generatePercentPaidReport(filters);
+        setReportData(data || []);
+      } catch (error) {
+        console.error('Error fetching percent paid report:', error);
+        toast({ 
+          title: "Error", 
+          description: "No se pudo cargar el reporte de porcentaje pagado.", 
+          variant: "destructive" 
+        });
+        setReportData([]);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchData();
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   const handleExportToExcel = async () => {
     if (!reportData || reportData.length === 0) {
@@ -112,7 +123,7 @@ function PercentPaidReportContent() {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <span>{formatPercentage(item.paidPercentage)}</span>
-                      <Progress value={item.paidPercentage} className="w-24 h-2 no-print" />
+                      <Progress value={Math.min(Math.max(Number(item.paidPercentage) || 0, 0), 100)} className="w-24 h-2 no-print" />
                     </div>
                   </TableCell>
                 </TableRow>

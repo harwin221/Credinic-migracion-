@@ -386,7 +386,12 @@ export async function generatePercentPaidReport(filters: ReportFilters): Promise
     }
 
     const results = await query(sql, params);
-    return results as PercentPaidItem[];
+    return results.map((row: any) => ({
+        ...row,
+        totalAmount: Number(row.totalAmount) || 0,
+        paidAmount: Number(row.paidAmount) || 0,
+        paidPercentage: Number(row.paidPercentage) || 0,
+    })) as PercentPaidItem[];
 }
 
 export async function generateNonRenewedReport(filters: ReportFilters): Promise<NonRenewedCreditItem[]> {
