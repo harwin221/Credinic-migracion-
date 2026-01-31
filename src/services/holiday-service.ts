@@ -38,27 +38,89 @@ export const addHoliday = async (holidayData: Omit<Holiday, 'id'>, actor: User):
 };
 
 /**
- * Sincroniza todos los planes de pago de créditos activos con los días feriados actuales
+ * Verifica si un crédito tiene plan de pagos y lo regenera si es necesario
  */
+export const ensurePaymentPlanExists = async (creditId: string, actor: User): Promise<{ success: boolean, created: boolean, error?: string }> => {
+    try {
+        // Verificar si ya existe un plan de pagos
+        const existingPlan: any = await query('SELECT COUNT(*) as count FROM payment_plan WHERE creditId = ?', [creditId]);
+        
+        if (existingPlan[0].count > 0) {
+            return { success: true, created: false };
+        }
+
+        // Si no existe, obtener los datos del crédito y generar el plan
+        const creditResult: any = await query('SELECT * FROM credits WHERE id = ? LIMIT 1', [creditId]);
+        if (creditResult.length === 0) {
+            return { success: false, created: false, error: 'Crédito no encontrado.' };
+        }
+
+        const credit = creditResult[0];
+
+        // Obtener días feriados
+        const holidays = (await query("SELECT date FROM holidays")) as any[];
+        const holidayDates = holidays.map((h: any) => format(new Date(h.date), 'yyyy-MM-dd'));
+
+        // Generar plan de pagos
+        const { generatePaymentSchedule } = await import('@/lib/utils');
+        const { formatDateForUser } = await import('@/lib/date-utils');
+        
+        const scheduleData = generatePaymentSchedule({
+            loanAmount: credit.principalAmount,
+            monthlyInterestRate: credit.interestRate,
+            termMonths: credit.termMonths,
+            paymentFrequency: credit.paymentFrequency,
+            startDate: formatDateForUser(credit.firstPaymentDate, 'yyyy-MM-dd'),
+            holidays: holidayDates
+        });
+
+        if (scheduleData && scheduleData.schedule) {
+            // Insertar el plan de pagos
+            for (const payment of scheduleData.schedule) {
+                await query(`
+                    INSERT INTO payment_plan (creditId, paymentNumber, paymentDate, amount, principal, interest, balance)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `, [
+                    credit.id,
+                    payment.paymentNumber,
+                    `${payment.paymentDate.split('T')[0]} 12:00:00`,
+                    payment.amount,
+                    payment.principal,
+                    payment.interest,
+                    payment.balance
+                ]);
+            }
+
+            await createLog(actor, 'payment_plan:create', `Generó plan de pagos faltante para crédito ${credit.creditNumber}.`, { 
+                targetId: creditId,
+                details: { paymentsCreated: scheduleData.schedule.length }
+            });
+
+            return { success: true, created: true };
+        } else {
+            return { success: false, created: false, error: 'No se pudo generar el plan de pagos.' };
+        }
+
+    } catch (error: any) {
+        console.error('Error ensuring payment plan exists:', error);
+        return { success: false, created: false, error: error.message };
+    }
+};
 export const synchronizeAllPaymentPlans = async (actor: User): Promise<{ success: boolean, updated: number, error?: string }> => {
     try {
-        // Obtener todos los días feriados actuales
-        const holidaysResult: any = await query('SELECT date FROM holidays');
-        const holidays = holidaysResult.map((h: any) => format(new Date(h.date), 'yyyy-MM-dd'));
-
-        // Obtener todos los créditos activos que necesitan sincronización
-        const activeCredits: any = await query(`
-            SELECT id, amount, principalAmount, interestRate, termMonths, paymentFrequency, firstPaymentDate
-            FROM credits 
-            WHERE status IN ('Active', 'Approved')
-        `);
-
+        // Usar la misma lógica que revalidateActiveCreditsStatus
+        const activeCredits = (await query("SELECT * FROM credits WHERE status = 'Active'")) as any[];
         let updatedCount = 0;
+
+        // Obtener todos los días feriados actuales
+        const holidays = (await query("SELECT date FROM holidays")) as any[];
+        const holidayDates = holidays.map((h: any) => format(new Date(h.date), 'yyyy-MM-dd'));
 
         for (const credit of activeCredits) {
             try {
                 // Importar generatePaymentSchedule dinámicamente para evitar dependencias circulares
                 const { generatePaymentSchedule } = await import('@/lib/utils');
+                const { formatDateForUser } = await import('@/lib/date-utils');
                 
                 // Regenerar el plan de pagos con los días feriados actuales
                 const scheduleData = generatePaymentSchedule({
@@ -66,24 +128,27 @@ export const synchronizeAllPaymentPlans = async (actor: User): Promise<{ success
                     monthlyInterestRate: credit.interestRate,
                     termMonths: credit.termMonths,
                     paymentFrequency: credit.paymentFrequency,
-                    startDate: credit.firstPaymentDate,
-                    holidays
+                    startDate: formatDateForUser(credit.firstPaymentDate, 'yyyy-MM-dd'),
+                    holidays: holidayDates
                 });
 
                 if (scheduleData && scheduleData.schedule) {
+                    // Actualizar la fecha de vencimiento en el registro principal del crédito
+                    const newDueDate = scheduleData.schedule[scheduleData.schedule.length - 1].paymentDate;
+                    await query('UPDATE credits SET dueDate = ? WHERE id = ?', [`${newDueDate.split('T')[0]} 12:00:00`, credit.id]);
+
                     // Eliminar el plan de pagos anterior
                     await query('DELETE FROM payment_plan WHERE creditId = ?', [credit.id]);
 
                     // Insertar el nuevo plan de pagos
                     for (const payment of scheduleData.schedule) {
                         await query(`
-                            INSERT INTO payment_plan (id, creditId, paymentNumber, paymentDate, amount, principal, interest, balance)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO payment_plan (creditId, paymentNumber, paymentDate, amount, principal, interest, balance)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
                         `, [
-                            payment.id.replace('payment_', `${credit.id}_payment_`),
                             credit.id,
                             payment.paymentNumber,
-                            payment.paymentDate.replace('T12:00:00.000Z', ' 12:00:00'),
+                            `${payment.paymentDate.split('T')[0]} 12:00:00`,
                             payment.amount,
                             payment.principal,
                             payment.interest,
