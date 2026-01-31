@@ -102,19 +102,19 @@ function SaldosCarteraReportContent() {
       }
 
       acc[sucursalKey].gestores[gestorKey].credits.push(item);
-      acc[sucursalKey].gestores[gestorKey].totalSaldoCapital += item.remainingPrincipal;
-      acc[sucursalKey].gestores[gestorKey].totalSaldoInteres += item.remainingInterest;
-      acc[sucursalKey].gestores[gestorKey].totalCuota += item.installmentAmount;
-      acc[sucursalKey].gestores[gestorKey].totalSaldo += item.remainingBalance;
+      acc[sucursalKey].gestores[gestorKey].totalSaldoCapital += Number(item.remainingPrincipal) || 0;
+      acc[sucursalKey].gestores[gestorKey].totalSaldoInteres += Number(item.remainingInterest) || 0;
+      acc[sucursalKey].gestores[gestorKey].totalCuota += Number(item.installmentAmount) || 0;
+      acc[sucursalKey].gestores[gestorKey].totalSaldo += Number(item.remainingBalance) || 0;
 
       return acc;
     }, {} as Record<string, { sucursal: string, gestores: Record<string, any> }>);
 
     const grandTotalClients = reportData.detailed.length;
-    const grandTotalSaldoCapital = reportData.detailed.reduce((sum, item) => sum + item.remainingPrincipal, 0);
-    const grandTotalSaldoInteres = reportData.detailed.reduce((sum, item) => sum + item.remainingInterest, 0);
-    const grandTotalCuota = reportData.detailed.reduce((sum, item) => sum + item.installmentAmount, 0);
-    const grandTotalSaldo = reportData.detailed.reduce((sum, item) => sum + item.remainingBalance, 0);
+    const grandTotalSaldoCapital = reportData.detailed.reduce((sum, item) => sum + (Number(item.remainingPrincipal) || 0), 0);
+    const grandTotalSaldoInteres = reportData.detailed.reduce((sum, item) => sum + (Number(item.remainingInterest) || 0), 0);
+    const grandTotalCuota = reportData.detailed.reduce((sum, item) => sum + (Number(item.installmentAmount) || 0), 0);
+    const grandTotalSaldo = reportData.detailed.reduce((sum, item) => sum + (Number(item.remainingBalance) || 0), 0);
 
     return (
       <div className="space-y-6">
@@ -194,9 +194,9 @@ function SaldosCarteraReportContent() {
   };
 
   const renderSummaryView = () => {
-    const grandTotalCredits = reportData.summary.reduce((sum, item) => sum + item.creditCount, 0);
-    const grandTotalSaldo = reportData.summary.reduce((sum, item) => sum + item.totalBalance, 0);
-    const grandTotalCuota = reportData.summary.reduce((sum, item) => sum + item.totalInstallment, 0);
+    const grandTotalCredits = reportData.summary.reduce((sum, item) => sum + (Number(item.creditCount) || 0), 0);
+    const grandTotalSaldo = reportData.summary.reduce((sum, item) => sum + (Number(item.totalBalance) || 0), 0);
+    const grandTotalCuota = reportData.summary.reduce((sum, item) => sum + (Number(item.totalInstallment) || 0), 0);
 
     return (
       <div className="overflow-x-auto">

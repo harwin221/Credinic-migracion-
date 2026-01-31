@@ -240,12 +240,17 @@ export async function generateSaldosCarteraReport(filters: ReportFilters): Promi
 
     const detailed: SaldosCarteraItem[] = credits.map((row: any) => {
         const principalRatio = row.totalAmount > 0 ? row.principalAmount / row.totalAmount : 0;
+        const remainingBalance = Number(row.remainingBalance) || 0;
+        const installmentAmount = Number(row.installmentAmount) || 0;
+        
         return {
             ...row,
             gestorName: row.gestorName || 'Sin Asignar',
             sucursalName: row.sucursalName || 'Sin Asignar',
-            remainingPrincipal: row.remainingBalance * principalRatio,
-            remainingInterest: row.remainingBalance * (1 - principalRatio),
+            remainingBalance: remainingBalance,
+            installmentAmount: installmentAmount,
+            remainingPrincipal: remainingBalance * principalRatio,
+            remainingInterest: remainingBalance * (1 - principalRatio),
         };
     });
 
