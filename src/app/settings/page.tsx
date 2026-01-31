@@ -79,6 +79,13 @@ export default function SettingsPage() {
       icon: ShieldAlert,
       href: '/settings/access-control',
     },
+    {
+      title: 'Diagnóstico de Planes',
+      category: 'Mantenimiento',
+      description: 'Verificar y corregir créditos sin planes de pago.',
+      icon: RefreshCw,
+      href: '/settings/payment-plans-diagnostic',
+    },
   ];
 
   return (
