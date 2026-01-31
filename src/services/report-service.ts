@@ -446,6 +446,12 @@ export async function generateNonRenewedReport(filters: ReportFilters): Promise<
         .filter(c => !renewedClientIds.has(c.clientId))
         .map(c => ({
             ...c,
+            amount: Number(c.amount) || 0,
+            totalAmount: Number(c.totalAmount) || 0,
+            interestRate: Number(c.interestRate) || 0,
+            termMonths: Number(c.termMonths) || 0,
+            avgLateDaysMora: Number(c.avgLateDaysMora) || 0,
+            avgLateDaysGlobal: Number(c.avgLateDaysGlobal) || 0,
             cancellationDate: c.cancellationDate ? toISOString(c.cancellationDate) || c.dueDate : c.dueDate,
         }));
 

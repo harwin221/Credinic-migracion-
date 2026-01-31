@@ -12,8 +12,9 @@ import type { NonRenewedCreditItem } from '@/services/report-service';
 import { generateNonRenewedReport } from '@/services/report-service';
 import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
 
-const formatCurrency = (amount: number) => `C$ ${amount.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatCurrency = (amount: number) => `C$ ${(Number(amount) || 0).toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const formatDate = (dateString?: string | Date) => {
   if (!dateString) return 'N/A';
   try {
@@ -27,6 +28,7 @@ const formatDate = (dateString?: string | Date) => {
 
 function NonRenewedReportContent() {
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [reportData, setReportData] = React.useState<NonRenewedCreditItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [dateFrom, setDateFrom] = React.useState<string | null>(null);
@@ -35,21 +37,32 @@ function NonRenewedReportContent() {
   React.useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      const filters = {
-        sucursales: searchParams.getAll('sucursal'),
-        users: searchParams.getAll('user'),
-        dateFrom: searchParams.get('from') || undefined,
-        dateTo: searchParams.get('to') || undefined,
-      };
-      setDateFrom(filters.dateFrom || null);
-      setDateTo(filters.dateTo || null);
+      try {
+        const filters = {
+          sucursales: searchParams.getAll('sucursal'),
+          users: searchParams.getAll('user'),
+          dateFrom: searchParams.get('from') || undefined,
+          dateTo: searchParams.get('to') || undefined,
+        };
+        setDateFrom(filters.dateFrom || null);
+        setDateTo(filters.dateTo || null);
 
-      const data = await generateNonRenewedReport(filters);
-      setReportData(data);
-      setIsLoading(false);
+        const data = await generateNonRenewedReport(filters);
+        setReportData(data || []);
+      } catch (error) {
+        console.error('Error fetching non-renewed report:', error);
+        toast({ 
+          title: "Error", 
+          description: "No se pudo cargar el reporte de cancelados y no renovados.", 
+          variant: "destructive" 
+        });
+        setReportData([]);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchData();
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   if (isLoading) {
     return (
@@ -71,8 +84,8 @@ function NonRenewedReportContent() {
 
   const grandTotalClients = new Set(reportData.map(c => c.clientCode)).size;
   const grandTotalCredits = reportData.length;
-  const grandTotalDesembolsos = reportData.reduce((sum, c) => sum + c.amount, 0);
-  const grandTotalMontoTotal = reportData.reduce((sum, c) => sum + c.totalAmount, 0);
+  const grandTotalDesembolsos = reportData.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+  const grandTotalMontoTotal = reportData.reduce((sum, c) => sum + (Number(c.totalAmount) || 0), 0);
 
 
   return (
@@ -113,15 +126,15 @@ function NonRenewedReportContent() {
                         <TableCell>{item.clientName}</TableCell>
                         <TableCell>{item.creditNumber}</TableCell>
                         <TableCell>{item.currencyType}</TableCell>
-                        <TableCell>{item.amount.toFixed(2)}</TableCell>
-                        <TableCell>{item.totalAmount.toFixed(2)}</TableCell>
-                        <TableCell>{item.interestRate.toFixed(2)}</TableCell>
+                        <TableCell>{(Number(item.amount) || 0).toFixed(2)}</TableCell>
+                        <TableCell>{(Number(item.totalAmount) || 0).toFixed(2)}</TableCell>
+                        <TableCell>{(Number(item.interestRate) || 0).toFixed(2)}</TableCell>
                         <TableCell>{item.paymentFrequency}</TableCell>
                         <TableCell>{item.termMonths}</TableCell>
                         <TableCell>{formatDate(item.cancellationDate)}</TableCell>
                         <TableCell>{formatDate(item.dueDate)}</TableCell>
-                        <TableCell>{item.avgLateDaysMora?.toFixed(2) ?? '0.00'}</TableCell>
-                        <TableCell>{item.avgLateDaysGlobal?.toFixed(2) ?? '0.00'}</TableCell>
+                        <TableCell>{(Number(item.avgLateDaysMora) || 0).toFixed(2)}</TableCell>
+                        <TableCell>{(Number(item.avgLateDaysGlobal) || 0).toFixed(2)}</TableCell>
                         <TableCell>{item.gestorName !== gestor ? item.gestorName : ''}</TableCell>
                       </TableRow>
                     ))}
