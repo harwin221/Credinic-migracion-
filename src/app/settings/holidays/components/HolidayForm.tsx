@@ -51,7 +51,10 @@ export function HolidayForm({ isOpen, onClose, onSuccess }: HolidayFormProps) {
     try {
         const result = await addHoliday(data, user);
         if(result.success){
-          toast({ title: "Feriado Agregado", description: `El día ${data.name} ha sido agregado como feriado.` });
+          toast({ 
+            title: "Feriado Agregado", 
+            description: `El día ${data.name} ha sido agregado como feriado. Se han sincronizado todos los planes de pago.` 
+          });
           onSuccess();
           onClose();
         } else {
@@ -125,7 +128,7 @@ export function HolidayForm({ isOpen, onClose, onSuccess }: HolidayFormProps) {
               </DialogClose>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar Feriado
+                {isSubmitting ? 'Guardando y Sincronizando...' : 'Guardar Feriado'}
               </Button>
             </DialogFooter>
           </form>
