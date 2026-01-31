@@ -385,6 +385,8 @@ export async function generatePercentPaidReport(filters: ReportFilters): Promise
         }
     }
 
+    sql += ` ORDER BY paidPercentage DESC`;
+
     const results = await query(sql, params);
     return results.map((row: any) => ({
         ...row,
