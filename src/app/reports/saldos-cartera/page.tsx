@@ -125,40 +125,42 @@ function SaldosCarteraReportContent() {
               {Object.values(sucursalGroup.gestores).map((gestorGroup: any) => (
                 <div key={gestorGroup.gestor} className="mb-4">
                   <h3 className="text-[11px] font-semibold uppercase mb-2">&gt;&gt; GEST. {gestorGroup.gestor}</h3>
-                  <Table className="report-table-condensed">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Nombre del Cliente</TableHead>
-                        <TableHead>Crédito</TableHead>
-                        <TableHead className="text-right">Cuota</TableHead>
-                        <TableHead className="text-right">Sal Capital</TableHead>
-                        <TableHead className="text-right">Sal Intereses</TableHead>
-                        <TableHead className="text-right">Saldo Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {gestorGroup.credits.map((item: SaldosCarteraItem) => (
-                        <TableRow key={item.creditId}>
-                          <TableCell>{item.clientNumber}</TableCell>
-                          <TableCell>{item.clientName}</TableCell>
-                          <TableCell>{item.creditNumber}</TableCell>
-                          <TableCell className="text-right">{formatCurrencySymbol(item.installmentAmount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrencySymbol(item.remainingPrincipal)}</TableCell>
-                          <TableCell className="text-right">{formatCurrencySymbol(item.remainingInterest)}</TableCell>
-                          <TableCell className="text-right font-bold">{formatCurrencySymbol(item.remainingBalance)}</TableCell>
+                  <div className="overflow-x-auto">
+                    <Table className="report-table-condensed">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Nombre del Cliente</TableHead>
+                          <TableHead>Crédito</TableHead>
+                          <TableHead className="text-right">Cuota</TableHead>
+                          <TableHead className="text-right">Sal Capital</TableHead>
+                          <TableHead className="text-right">Sal Intereses</TableHead>
+                          <TableHead className="text-right">Saldo Total</TableHead>
                         </TableRow>
-                      ))}
-                      <TableRow className="font-bold bg-gray-100">
-                        <TableCell colSpan={2}>TOTAL GEST: &gt;&gt;</TableCell>
-                        <TableCell>Clientes: {gestorGroup.credits.length}</TableCell>
-                        <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalCuota)}</TableCell>
-                        <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldoCapital)}</TableCell>
-                        <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldoInteres)}</TableCell>
-                        <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldo)}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {gestorGroup.credits.map((item: SaldosCarteraItem) => (
+                          <TableRow key={item.creditId}>
+                            <TableCell>{item.clientNumber}</TableCell>
+                            <TableCell>{item.clientName}</TableCell>
+                            <TableCell>{item.creditNumber}</TableCell>
+                            <TableCell className="text-right">{formatCurrencySymbol(item.installmentAmount)}</TableCell>
+                            <TableCell className="text-right">{formatCurrencySymbol(item.remainingPrincipal)}</TableCell>
+                            <TableCell className="text-right">{formatCurrencySymbol(item.remainingInterest)}</TableCell>
+                            <TableCell className="text-right font-bold">{formatCurrencySymbol(item.remainingBalance)}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="font-bold bg-gray-100">
+                          <TableCell colSpan={2}>TOTAL GEST: &gt;&gt;</TableCell>
+                          <TableCell>Clientes: {gestorGroup.credits.length}</TableCell>
+                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalCuota)}</TableCell>
+                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldoCapital)}</TableCell>
+                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldoInteres)}</TableCell>
+                          <TableCell className="text-right">{formatCurrencySymbol(gestorGroup.totalSaldo)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               ))}
             </div>
@@ -170,19 +172,21 @@ function SaldosCarteraReportContent() {
         )}
         {Object.keys(groupedData).length > 0 && (
           <div className="mt-8 pt-4 border-t-2 border-dashed">
-            <Table className="report-table-condensed">
-              <TableFooter>
-                <TableRow className="font-bold text-sm bg-blue-100 hover:bg-blue-100">
-                  <TableCell>TOTAL GENERAL</TableCell>
-                  <TableCell>Clientes: {grandTotalClients}</TableCell>
-                  <TableCell>Créditos: {grandTotalClients}</TableCell>
-                  <TableCell className="text-right">{formatCurrencySymbol(grandTotalCuota)}</TableCell>
-                  <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldoCapital)}</TableCell>
-                  <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldoInteres)}</TableCell>
-                  <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldo)}</TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table className="report-table-condensed">
+                <TableFooter>
+                  <TableRow className="font-bold text-sm bg-blue-100 hover:bg-blue-100">
+                    <TableCell>TOTAL GENERAL</TableCell>
+                    <TableCell>Clientes: {grandTotalClients}</TableCell>
+                    <TableCell>Créditos: {grandTotalClients}</TableCell>
+                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalCuota)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldoCapital)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldoInteres)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldo)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
           </div>
         )}
       </div>
@@ -195,34 +199,36 @@ function SaldosCarteraReportContent() {
     const grandTotalCuota = reportData.summary.reduce((sum, item) => sum + item.totalInstallment, 0);
 
     return (
-      <Table className="report-table-condensed">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Usuario</TableHead>
-            <TableHead># Créditos</TableHead>
-            <TableHead className="text-right">Suma de Cuotas</TableHead>
-            <TableHead className="text-right">Saldo de Cartera</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {reportData.summary.map(item => (
-            <TableRow key={item.gestorName}>
-              <TableCell className="font-medium">{item.gestorName}</TableCell>
-              <TableCell>{item.creditCount}</TableCell>
-              <TableCell className="text-right">{formatCurrencySymbol(item.totalInstallment)}</TableCell>
-              <TableCell className="text-right">{formatCurrencySymbol(item.totalBalance)}</TableCell>
+      <div className="overflow-x-auto">
+        <Table className="report-table-condensed">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Usuario</TableHead>
+              <TableHead># Créditos</TableHead>
+              <TableHead className="text-right">Suma de Cuotas</TableHead>
+              <TableHead className="text-right">Saldo de Cartera</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-        <TableFooter>
-          <TableRow className="font-bold text-sm bg-muted">
-            <TableCell>TOTAL GENERAL</TableCell>
-            <TableCell>{grandTotalCredits}</TableCell>
-            <TableCell className="text-right">{formatCurrencySymbol(grandTotalCuota)}</TableCell>
-            <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldo)}</TableCell>
-          </TableRow>
-        </TableFooter>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {reportData.summary.map(item => (
+              <TableRow key={item.gestorName}>
+                <TableCell className="font-medium">{item.gestorName}</TableCell>
+                <TableCell>{item.creditCount}</TableCell>
+                <TableCell className="text-right">{formatCurrencySymbol(item.totalInstallment)}</TableCell>
+                <TableCell className="text-right">{formatCurrencySymbol(item.totalBalance)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow className="font-bold text-sm bg-muted">
+              <TableCell>TOTAL GENERAL</TableCell>
+              <TableCell>{grandTotalCredits}</TableCell>
+              <TableCell className="text-right">{formatCurrencySymbol(grandTotalCuota)}</TableCell>
+              <TableCell className="text-right">{formatCurrencySymbol(grandTotalSaldo)}</TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </div>
     );
   };
 

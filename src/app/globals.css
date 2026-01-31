@@ -118,13 +118,37 @@
       background-color: hsl(var(--background));
   }
   
+  .report-table-condensed {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+  }
+  
   .report-table-condensed th, .report-table-condensed td {
     padding: 2px 4px !important; /* Denser padding */
     font-size: 10px !important;
+    border: 1px solid #e5e7eb !important;
+    text-align: left !important;
+    vertical-align: top !important;
+    word-wrap: break-word !important;
   }
   
   .report-table-condensed td {
     font-size: 9px !important;
+  }
+
+  .report-table-condensed thead th {
+    background-color: #f3f4f6 !important;
+    font-weight: bold !important;
+    border-bottom: 2px solid #d1d5db !important;
+  }
+
+  .report-table-condensed tbody tr:nth-child(even) {
+    background-color: #f9fafb !important;
+  }
+
+  .report-table-condensed tbody tr:hover {
+    background-color: #f3f4f6 !important;
   }
 
   @media print {
